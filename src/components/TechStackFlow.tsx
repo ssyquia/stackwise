@@ -8,23 +8,20 @@ import {
   addEdge,
   useNodesState,
   useEdgesState,
+  BackgroundVariant,
   Connection,
   Edge,
   Node,
 } from '@xyflow/react';
+import '@xyflow/react/dist/style.css';  // Updated import path
 import { useToast } from '@/hooks/use-toast';
 import TechNode from './nodes/TechNode';
-import 'reactflow/dist/style.css';
-
-interface TechStackFlowProps {
-  onSave: (nodes: Node[], edges: Edge[]) => void;
-}
 
 const nodeTypes = {
   techNode: TechNode,
 };
 
-const TechStackFlow = ({ onSave }: TechStackFlowProps) => {
+const TechStackFlow = ({ onSave }: { onSave: (nodes: Node[], edges: Edge[]) => void }) => {
   const { toast } = useToast();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -107,7 +104,11 @@ const TechStackFlow = ({ onSave }: TechStackFlowProps) => {
         >
           <Controls />
           <MiniMap />
-          <Background variant="dots" gap={12} size={1} />
+          <Background 
+            variant={BackgroundVariant.Dots}  // Updated to use BackgroundVariant enum
+            gap={12} 
+            size={1} 
+          />
         </ReactFlow>
       </div>
     </div>

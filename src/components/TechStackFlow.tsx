@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef } from 'react';
 import {
   ReactFlow,
@@ -16,12 +15,13 @@ import {
 import '@xyflow/react/dist/style.css';  // Updated import path
 import { useToast } from '@/hooks/use-toast';
 import TechNode from './nodes/TechNode';
+import { Button } from '@/components/ui/button';
 
 const nodeTypes = {
   techNode: TechNode,
 };
 
-const TechStackFlow = ({ onSave }: { onSave: (nodes: Node[], edges: Edge[]) => void }) => {
+const TechStackFlow = ({ onSave, onExport }: { onSave: (nodes: Node[], edges: Edge[]) => void, onExport: () => void }) => {
   const { toast } = useToast();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -60,42 +60,56 @@ const TechStackFlow = ({ onSave }: { onSave: (nodes: Node[], edges: Edge[]) => v
     setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
   };
 
-  const onDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault();
+  const handleNodeDetailsChange = (nodeId: string, details: string) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              details
+            },
+          };
+        }
+        return node;
+      })
+    );
+  };
 
-      if (!reactFlowWrapper.current || !reactFlowInstance) return;
+  const onDrop = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    if (!reactFlowWrapper.current || !reactFlowInstance) return;
 
-      const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
-      const type = event.dataTransfer.getData('application/reactflow/type');
-      const label = event.dataTransfer.getData('application/reactflow/label');
+    const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
+    const type = event.dataTransfer.getData('application/reactflow/type');
+    const label = event.dataTransfer.getData('application/reactflow/label');
 
-      // Check if the dropped element is valid
-      if (typeof type === 'undefined' || !type) {
-        return;
-      }
+    if (typeof type === 'undefined' || !type) {
+      return;
+    }
 
-      const position = reactFlowInstance.screenToFlowPosition({
-        x: event.clientX - reactFlowBounds.left,
-        y: event.clientY - reactFlowBounds.top,
-      });
+    const position = reactFlowInstance.screenToFlowPosition({
+      x: event.clientX - reactFlowBounds.left,
+      y: event.clientY - reactFlowBounds.top,
+    });
 
-      const newNode = {
-        id: `node_${Date.now()}`,
-        type: 'techNode',
-        position,
-        data: { 
-          label: label || type, 
-          type, 
-          onLabelChange: handleNodeLabelChange,
-          onDelete: handleNodeDelete,
-        },
-      };
+    const newNode = {
+      id: `node_${Date.now()}`,
+      type: 'techNode',
+      position,
+      data: { 
+        label: label || type, 
+        type,
+        details: '',
+        onLabelChange: handleNodeLabelChange,
+        onDelete: handleNodeDelete,
+        onDetailsChange: handleNodeDetailsChange,
+      },
+    };
 
-      setNodes((nds) => nds.concat(newNode));
-    },
-    [reactFlowInstance, setNodes]
-  );
+    setNodes((nds) => nds.concat(newNode));
+  }, [reactFlowInstance, setNodes]);
 
   const handleSave = () => {
     onSave(nodes, edges);
@@ -109,12 +123,21 @@ const TechStackFlow = ({ onSave }: { onSave: (nodes: Node[], edges: Edge[]) => v
     <div className="h-full w-full flex flex-col">
       <div className="flex justify-between items-center p-2 bg-background border-b">
         <h2 className="text-lg font-medium">Tech Stack Editor</h2>
-        <button
-          onClick={handleSave}
-          className="bg-primary text-primary-foreground px-3 py-1 rounded-md text-sm"
-        >
-          Save Graph
-        </button>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleSave}
+            variant="outline"
+            size="sm"
+          >
+            Save Graph
+          </Button>
+          <Button
+            onClick={onExport}
+            size="sm"
+          >
+            Export to GitHub
+          </Button>
+        </div>
       </div>
       <div className="flex-grow" ref={reactFlowWrapper}>
         <ReactFlow

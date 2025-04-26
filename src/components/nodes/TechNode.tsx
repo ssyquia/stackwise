@@ -7,10 +7,12 @@ import NodeDetails from './NodeDetails';
 interface TechNodeProps {
   data: {
     label: string;
+    details?: string;
     type: 'frontend' | 'backend' | 'database' | 'custom';
     icon?: React.ReactNode;
     onDelete?: (id: string) => void;
     onLabelChange?: (id: string, label: string) => void;
+    onDetailsChange?: (id: string, details: string) => void;
   };
   id: string;
 }
@@ -39,8 +41,14 @@ const TechNode = ({ data, id }: TechNodeProps) => {
     }
   };
 
+  const handleDetailsChange = (nodeId: string, details: string) => {
+    if (data.onDetailsChange) {
+      data.onDetailsChange(nodeId, details);
+    }
+  };
+
   return (
-    <NodeDetails>
+    <NodeDetails nodeId={id} details={data.details || ''} onDetailsChange={handleDetailsChange}>
       <div className={`px-4 py-2 shadow-md rounded-md w-40 ${nodeTypeColors[data.type]}`}>
         <div className="flex flex-col items-center">
           <div className="w-full flex justify-between items-center mb-2">

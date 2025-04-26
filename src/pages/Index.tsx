@@ -24,6 +24,12 @@ import { Button } from '@/components/ui/button';
 import { toast } from "@/components/ui/sonner"
 import TechNode from '@/components/nodes/TechNode';
 import ResetGraphButton from '@/components/ResetGraphButton';
+import {
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+} from "react-resizable-panels";
+import { MessageCircle, PanelLeftClose, PanelRightClose, X } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'techStackGraphHistory';
 
@@ -40,6 +46,14 @@ interface VersionHistoryEntry {
 const nodeTypes = {
   techNode: TechNode,
 };
+
+// Define message structure
+interface ChatMessage {
+  id?: string; // Add optional ID for the thinking message
+  sender: 'user' | 'ai' | 'system';
+  content: string | object; // Allow string or JSON object for graph data
+  timestamp: string;
+}
 
 const Index = () => {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
@@ -86,6 +100,9 @@ const Index = () => {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportJson, setExportJson] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [isChatPanelCollapsed, setIsChatPanelCollapsed] = useState(false);
 
   // Effect to mark initial load as complete after first render
   useEffect(() => {
@@ -305,43 +322,53 @@ const Index = () => {
     setExportDialogOpen(true);
   };
 
+  // Effect to scroll chat down on new message
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
   // Handle AI graph generation
   const handleGenerateGraph = useCallback(async (prompt: string) => {
     if (!prompt.trim()) {
-      toast.error("Input Error", { description: "Please enter a description.", duration: 3000 });
+      toast.error("Input Error", { description: "Please enter a description.", duration: 3000 }); 
       return;
     }
     console.log(`Generating graph for prompt: \"${prompt}\"`);
-    setIsGenerating(true); // Show loading state
     
-    const loadingToastId = toast.loading(
+    const userMessage: ChatMessage = { sender: 'user', content: prompt, timestamp: new Date().toISOString() };
+    const thinkingMessageId = `thinking-${Date.now()}`;
+    const thinkingMessage: ChatMessage = { id: thinkingMessageId, sender: 'ai', content: 'Thinking...', timestamp: new Date().toISOString() };
+    
+    setChatMessages(prev => [...prev, userMessage, thinkingMessage]);
+    setIsGenerating(true); 
+    
+    // ADD BACK loading toast for graph generation
+    const graphLoadingToastId = toast.loading(
         "Generating Graph...", 
-        { description: "Asking AI to create your tech stack..." }
+        { description: "Asking AI to create your tech stack..." } 
     );
+    
+    let generatedData: any = null; 
+    let graphError: Error | null = null;
 
     try {
-      // Call the Flask backend endpoint
+      // --- Call Generate Graph API --- 
       const response = await fetch('http://localhost:5001/api/generate-graph', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description: prompt }),
       });
 
       if (!response.ok) {
-        let errorMsg = `HTTP error! status: ${response.status}`;
-        try {
-            const errorData = await response.json();
-            errorMsg = errorData.error || errorMsg;
-        } catch (jsonError) {
-            // If response is not JSON, use the status text
-            errorMsg = response.statusText || errorMsg;
-        }
-        throw new Error(errorMsg);
+         let errorMsg = `HTTP error! status: ${response.status}`;
+         try { const errorData = await response.json(); errorMsg = errorData.error || errorMsg; }
+         catch (jsonError) { errorMsg = response.statusText || errorMsg; }
+         throw new Error(errorMsg);
       }
 
-      const generatedData = await response.json();
+      generatedData = await response.json();
 
       // Validate response structure (basic)
       if (!generatedData || !Array.isArray(generatedData.nodes) || !Array.isArray(generatedData.edges)) {
@@ -350,12 +377,10 @@ const Index = () => {
 
       console.log("Received graph data from backend:", generatedData);
 
-      // --- Create and Save New Version --- 
+      // --- Update Graph and Version History --- 
       const newVersionId = `ai_version_${Date.now()}`;
-      // Ensure nodes/edges are copied correctly and have basic validation
       const newNodes = Array.isArray(generatedData.nodes) ? [...generatedData.nodes] : [];
       const newEdges = Array.isArray(generatedData.edges) ? [...generatedData.edges] : [];
-
       const newVersion: VersionHistoryEntry = {
         id: newVersionId,
         timestamp: new Date().toISOString(),
@@ -405,22 +430,75 @@ const Index = () => {
       // 3. Update React State (this should happen even if localStorage fails)
       setVersionHistory((prevHistory) => [...prevHistory, newVersion]);
       setActiveVersionId(newVersionId);
-      setNodes(newNodes); // Update the displayed graph
-      setEdges(newEdges); // Update the displayed graph
+      setNodes(newNodes);
+      setEdges(newEdges);
 
       toast.success("AI Graph Generated", { description: "New graph loaded and saved.", duration: 3000 });
-
+      
     } catch (error) {
       console.error("Error generating graph via backend:", error);
-      // --- Error --- 
+      graphError = error; // Store error 
       toast.error("AI Generation Error", {
         description: error.message || "An unknown error occurred.",
         duration: 3000, 
       });
+      // Remove thinking message and add error message
+      setChatMessages(prev => prev.filter(m => m.id !== thinkingMessageId));
+      setChatMessages(prev => [...prev, { sender: 'system', content: `Graph generation failed: ${error.message}`, timestamp: new Date().toISOString() }]);
+      generatedData = null; 
     } finally {
-       setIsGenerating(false); // Hide loading state
-       toast.dismiss(loadingToastId);
+       // Dismiss the graph loading toast HERE
+       toast.dismiss(graphLoadingToastId); 
+       if (graphError) {
+          setIsGenerating(false); 
+       }
     }
+    
+    // --- Step 2: Call Explain Graph API (only if graph generation succeeded) --- 
+    if (generatedData && !graphError) {
+      const explanationLoadingToastId = toast.loading("Generating Explanation...", { description: "Asking AI to explain the stack..." });
+      let explanationError: Error | null = null;
+      try {
+          const explainResponse = await fetch('http://localhost:5001/api/explain-graph', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                graphData: generatedData, 
+                originalPrompt: prompt
+              })
+          });
+
+          if (!explainResponse.ok) {
+              let errorMsg = `Explanation error: ${explainResponse.status}`;
+              try { const errorData = await explainResponse.json(); errorMsg = errorData.error || errorMsg; }
+              catch (e) { errorMsg = explainResponse.statusText || errorMsg; }
+              throw new Error(errorMsg);
+          }
+
+          const explanationData = await explainResponse.json();
+          const explanationText = explanationData.explanation;
+
+          if (explanationText) {
+              setChatMessages(prev => prev.filter(m => m.id !== thinkingMessageId));
+              setChatMessages(prev => [...prev, { sender: 'ai', content: explanationText, timestamp: new Date().toISOString() }]);
+          } else {
+              throw new Error("Empty explanation received from backend.");
+          }
+
+      } catch (explainError) {
+          explanationError = explainError; 
+          console.error("Error getting explanation:", explainError);
+          toast.error("Explanation Error", { description: explainError.message || "Failed to get explanation.", duration: 3000 });
+          // Remove thinking message and add error message
+          setChatMessages(prev => prev.filter(m => m.id !== thinkingMessageId));
+          setChatMessages(prev => [...prev, { sender: 'system', content: `Failed to get explanation: ${explainError.message}`, timestamp: new Date().toISOString() }]);
+      } finally {
+          // Dismiss the explanation loading toast
+          toast.dismiss(explanationLoadingToastId);
+          setIsGenerating(false); 
+      }
+    }
+
   }, [versionHistory, setNodes, setEdges, setActiveVersionId, setVersionHistory]);
 
   const handleCreateRepository = async () => {
@@ -452,99 +530,138 @@ const Index = () => {
 
   return (
     <div className="flex h-screen w-full bg-background text-foreground">
-      {/* Sidebar (Left) - Adjusted width */}
-      <div className={`bg-card border-r transition-all flex-shrink-0 ${isSidebarOpen ? 'w-72' : 'w-0 overflow-hidden'}`}>
-        <div className="flex flex-col h-full">
-          {/* Sidebar Header */}
-          <div className="p-4 border-b flex justify-between items-center flex-shrink-0">
-            <h2 className="font-medium">Tech Stack Builder</h2>
-            <button 
-              onClick={() => setIsSidebarOpen(false)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              ←
-            </button>
-          </div>
-          
-          {/* Node Palette - Adjusted max-height if needed */}
-          <div className="border-b flex-shrink-0 overflow-y-auto max-h-[40%]">
-            <NodePalette onDragStart={onDragStart} />
-          </div>
-          
-          {/* Version History - Takes remaining space */}
-          <div className="flex-grow overflow-y-auto p-4 flex flex-col min-h-0">
-            <h3 className="text-sm font-medium mb-3 flex-shrink-0">Version History</h3>
-            <div className="space-y-1 flex-grow overflow-y-auto">
-              {versionHistory.map((version) => (
-                <VersionHistoryItem
-                  key={version.id}
-                  version={version}
-                  onRestore={handleRestoreVersion}
-                  isActive={version.id === activeVersionId}
-                />
-              ))}
+      {/* Sidebar (Fixed Width) - Reverted from Panel */}
+      <div className={`bg-card border-r transition-all flex-shrink-0 ${isSidebarOpen ? 'w-72' : 'w-0 overflow-hidden border-none'}`}>
+        {/* Conditionally render sidebar content only if not collapsed */} 
+        {isSidebarOpen && (
+          <div className="flex flex-col h-full">
+            {/* Sidebar Header */} 
+            <div className="p-4 border-b flex justify-between items-center flex-shrink-0">
+              <h2 className="font-medium">Tech Stack Builder</h2>
+              <button 
+                onClick={() => setIsSidebarOpen(false)}
+                className="text-muted-foreground hover:text-foreground"
+                title="Close Sidebar"
+              >
+                <PanelLeftClose size={16} /> {/* Use appropriate icon */} 
+              </button>
+            </div>
+            {/* Node Palette */}
+            <div className="border-b flex-shrink-0 overflow-y-auto max-h-[40%]">
+              <NodePalette onDragStart={onDragStart} />
+            </div>
+            {/* Version History */}
+            <div className="flex-grow overflow-y-auto p-4 flex flex-col min-h-0">
+              <h3 className="text-sm font-medium mb-3 flex-shrink-0">Version History</h3>
+               <div className="space-y-1 flex-grow overflow-y-auto">
+                {versionHistory.map((version) => (
+                 <VersionHistoryItem
+                   key={version.id}
+                   version={version}
+                   onRestore={handleRestoreVersion}
+                   isActive={version.id === activeVersionId}
+                 />
+                ))}
+               </div>
             </div>
           </div>
-        </div>
-      </div>
-      
-      {/* Main Content Area (Center - Flow Editor) */}
-      <div className="flex flex-col flex-grow relative" ref={reactFlowWrapper}> {/* Added relative positioning for button */}
-        {/* Toggle Sidebar Button (when closed) - Positioned relative to this container */}
-        {!isSidebarOpen && (
-          <button 
-            onClick={() => setIsSidebarOpen(true)}
-            className="absolute top-4 left-4 z-10 bg-card p-2 rounded-md shadow-md"
-          >
-            →
-          </button>
         )}
-        
-        {/* Flow Editor - Takes full space in the center column */}
-        <div className="flex-grow h-full"> {/* Ensure it fills height */}
-          {(() => { // IIFE to prepare nodesWithHandlers
-            const nodesWithHandlers = nodes.map((node) => ({
-              ...node,
-              data: {
-                ...node.data,
-                // Ensure handlers are always attached
-                onLabelChange: handleNodeLabelChange,
-                onDelete: handleNodeDelete,
-                onDetailsChange: handleNodeDetailsChange,
-              },
-            }));
-
-            return (
-              <TechStackFlow 
-                nodes={nodesWithHandlers} 
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                onInit={(instance: ReactFlowInstance) => setReactFlowInstance(instance)}
-                onDrop={onDrop}
-                onDragOver={onDragOver}
-                nodeTypes={nodeTypes}
-                onSave={handleSave}
-                onExport={handleExportGraph}
-                onReset={() => {
-                  setNodes([]);
-                  setEdges([]);
-                  setActiveVersionId('initial');
-                  toast.info("Graph Reset", { description: "Canvas cleared.", duration: 3000 });
-                }}
-              />
-            );
-          })()}
-        </div>
       </div>
 
-      {/* Chat Panel (Right) - Added fixed width and border */}
-      <div className="w-96 flex-shrink-0 border-l bg-card flex flex-col h-screen">
-         <ChatPanel onGenerateGraph={handleGenerateGraph} isGenerating={isGenerating} />
-      </div>
+      {/* Resizable Area (Main Content + Chat) */}
+      <PanelGroup direction="horizontal" className="flex-grow"> {/* PanelGroup now takes remaining space */}
+        {/* Main Content Panel (Flow Editor) */}
+        <Panel defaultSize={75} minSize={40} className="flex-grow relative"> {/* Occupies flexible space */} 
+          <div className="flex flex-col h-full" ref={reactFlowWrapper}> 
+            {/* Toggle Sidebar Button (when closed) - Adjusted positioning */}
+            {!isSidebarOpen && (
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="absolute top-4 left-4 z-10 bg-card p-2 rounded-md shadow-md border"
+                title="Open Sidebar"
+              >
+                 {/* Use a suitable icon if needed, e.g., PanelRightOpen */}
+                 →
+              </button>
+            )}
+            {/* Flow Editor takes full space */}
+            <div className="flex-grow h-full">
+               {(() => { 
+                 // ... prep nodesWithHandlers ...
+                 const nodesWithHandlers = nodes.map((node) => ({
+                  ...node,
+                  data: {
+                    ...node.data,
+                    onLabelChange: handleNodeLabelChange,
+                    onDelete: handleNodeDelete,
+                    onDetailsChange: handleNodeDetailsChange,
+                  },
+                 }));
+                 return (
+                   <TechStackFlow 
+                     nodes={nodesWithHandlers} 
+                     edges={edges}
+                     onNodesChange={onNodesChange}
+                     onEdgesChange={onEdgesChange}
+                     onConnect={onConnect}
+                     onInit={(instance: ReactFlowInstance) => setReactFlowInstance(instance)}
+                     onDrop={onDrop}
+                     onDragOver={onDragOver}
+                     nodeTypes={nodeTypes}
+                     onSave={handleSave}
+                     onExport={handleExportGraph}
+                     onReset={() => {
+                       setNodes([]);
+                       setEdges([]);
+                       setActiveVersionId('initial');
+                       toast.info("Graph Reset", { description: "Canvas cleared.", duration: 3000 });
+                     }}
+                   />
+                 );
+               })()}
+            </div>
+          </div>
+        </Panel>
+        <PanelResizeHandle className="w-1 bg-border hover:bg-primary focus:outline-none focus:ring-1 focus:ring-primary focus:ring-offset-1 data-[resize-handle-state=drag]:bg-primary transition-colors" />
 
-      {/* Export Dialog */}
+        {/* Chat Panel (Right, Resizable & Collapsible) */}
+        <Panel 
+          id="chat-panel"
+          defaultSize={25} 
+          minSize={10} 
+          maxSize={50}
+          collapsible={true} 
+          collapsedSize={0} 
+          onCollapse={() => setIsChatPanelCollapsed(true)}
+          onExpand={() => setIsChatPanelCollapsed(false)}
+          className={`flex-shrink-0 bg-card flex flex-col border-l ${isChatPanelCollapsed ? '!min-w-0 !max-w-0 !w-0 border-none overflow-hidden' : ''}`}
+        >
+           {/* ORIGINAL Chat Panel Code (Restored) */}
+          {!isChatPanelCollapsed && (
+            <ChatPanel 
+              messages={chatMessages} 
+              chatContainerRef={chatContainerRef}
+              onGenerateGraph={handleGenerateGraph} 
+              isGenerating={isGenerating} 
+              onCollapse={() => setIsChatPanelCollapsed(true)} 
+            />
+          )}
+          {/* END ORIGINAL Chat Panel Code */}
+        </Panel>
+      </PanelGroup>
+
+      {/* Floating Expand Chat Button ... (remains the same) ... */}
+      {isChatPanelCollapsed && (
+        <button
+          onClick={() => setIsChatPanelCollapsed(false)}
+          className="fixed bottom-4 right-4 z-50 bg-primary text-primary-foreground rounded-full p-3 shadow-lg hover:bg-primary/90 transition-all"
+          title="Open Chat"
+        >
+          <MessageCircle size={24} />
+        </button>
+      )}
+
+      {/* Export Dialog ... (remains the same) ... */}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
         <DialogContent className="max-w-lg w-[70vw] h-[60vh] flex flex-col p-4">
           <DialogHeader className="mb-2">

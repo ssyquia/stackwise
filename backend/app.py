@@ -199,6 +199,58 @@ def generate_tech_stack_graph(description):
         print(f"Error during Gemini call or processing: {e}, using mock fallback.")
         return create_mock_tech_stack(description) # Use mock for other errors
 
+# --- Helper: Generate Explanation for Graph ---
+def generate_graph_explanation(graph_json, original_prompt):
+    """Uses Gemini to generate an explanation for a given tech stack graph JSON,
+       considering the original user prompt.
+    """
+    if not gemini_model:
+        print("Gemini model not initialized. Cannot generate explanation.")
+        return "Error: AI model not available to generate explanation."
+
+    try:
+        graph_str = json.dumps(graph_json, indent=2)
+    except TypeError:
+        graph_str = str(graph_json) 
+        print("Warning: Could not serialize graph to JSON for explanation prompt.")
+
+    # --- Updated Prompt with Original Context --- 
+    prompt = textwrap.dedent(f"""
+    You are a helpful AI assistant explaining a generated tech stack diagram.
+    The diagram was generated based on the following user request:
+    \"""{original_prompt}"\""
+
+    Here is the generated tech stack graph data (in React Flow JSON format):
+    ```json
+    {graph_str}
+    ```
+
+    Explain the choices made for the components in this tech stack **in the context of the original user request**.
+    Describe why each component (node) might have been chosen and how they connect (edges) to fulfill the user's goal.
+    Focus on the relationships and the overall architecture suggested by the graph.
+    Keep the explanation concise and easy to understand.
+    Do not output JSON, only the textual explanation.
+    """)
+    # --- End Updated Prompt ---
+
+    try:
+        print(f"Sending prompt to Gemini for graph explanation (with context: {original_prompt[:50]}...)") # Log context
+        response = gemini_model.generate_content(prompt)
+
+        # Handle potential safety blocks or empty responses
+        if not response.parts:
+            feedback = response.prompt_feedback
+            print(f"Warning: Gemini explanation response blocked or empty. Feedback: {feedback}")
+            return "AI explanation was blocked or empty."
+
+        explanation_text = response.text
+        print("Received explanation text from Gemini.")
+        return explanation_text
+        
+    except Exception as e:
+        print(f"Error during Gemini call for explanation: {e}")
+        return f"Error generating explanation: {e}"
+
 # --- API Endpoints ---
 
 @app.route('/api/generate-graph', methods=['POST'])
@@ -240,6 +292,40 @@ def api_generate_graph():
     except Exception as e:
         print(f"Unexpected error in /api/generate-graph: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
+
+@app.route('/api/explain-graph', methods=['POST'])
+def api_explain_graph():
+    """Endpoint to generate an explanation for a given tech stack graph JSON,
+       using the original user prompt for context.
+    """
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+    
+    data = request.get_json()
+    graph_data = data.get('graphData')
+    original_prompt = data.get('originalPrompt')
+
+    if not graph_data or 'nodes' not in graph_data or 'edges' not in graph_data:
+        return jsonify({"error": "Invalid or missing graph data in request body"}), 400
+    if not original_prompt:
+         return jsonify({"error": "Missing originalPrompt in request body"}), 400
+
+    if not gemini_model:
+         return jsonify({"error": "Gemini API not configured on server."}), 503
+
+    try:
+        # Pass both graph and original prompt to the helper
+        explanation = generate_graph_explanation(graph_data, original_prompt)
+        
+        # Check for errors returned within the data (handled internally now)
+        # if "error" in explanation: 
+        #     print(f"Explanation generation failed: {explanation['error']}")
+        #     return jsonify({"error": f"Failed to generate explanation: {explanation['error']}"}), 500
+            
+        return jsonify({"explanation": explanation}), 200
+    except Exception as e:
+        print(f"Unexpected error in /api/explain-graph: {e}")
+        return jsonify({"error": "An internal server error occurred during explanation."}), 500
 
 @app.route('/')
 def health_check():

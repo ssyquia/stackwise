@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
@@ -12,10 +11,23 @@ interface NodePaletteProps {
   onDragStart: (event: React.DragEvent, nodeType: NodeTypeOption) => void;
 }
 
-const frameworks = {
-  frontend: ['React', 'Vue', 'Angular', 'Svelte'],
-  backend: ['Node.js', 'Django', 'Spring Boot', 'Laravel'],
-  database: ['PostgreSQL', 'MongoDB', 'MySQL', 'Redis'],
+// Expanded list of technologies
+const technologies = {
+  frontend: [
+    'React', 'Vue', 'Angular', 'Svelte', 'Next.js', 'Nuxt.js', 'Gatsby', 'jQuery', 
+    'HTML5', 'CSS3', 'JavaScript', 'TypeScript', 'Bootstrap', 'Tailwind CSS', 
+    'Material UI', 'Chakra UI', 'Ember.js', 'Backbone.js', 'Alpine.js'
+  ],
+  backend: [
+    'Node.js', 'Python', 'Java', 'Ruby', 'PHP', 'Go', 'C#', '.NET', 'Express.js', 
+    'Django', 'Flask', 'Spring Boot', 'Ruby on Rails', 'Laravel', 'ASP.NET Core', 
+    'Koa', 'FastAPI', 'Gin', 'NestJS', 'AdonisJS'
+  ],
+  database: [
+    'PostgreSQL', 'MySQL', 'SQLite', 'MongoDB', 'Redis', 'Cassandra', 'MariaDB', 
+    'Microsoft SQL Server', 'Oracle Database', 'Firebase Realtime Database', 
+    'Firestore', 'DynamoDB', 'Couchbase', 'Neo4j', 'ArangoDB', 'InfluxDB'
+  ],
 };
 
 const NodePalette = ({ onDragStart }: NodePaletteProps) => {
@@ -34,26 +46,30 @@ const NodePalette = ({ onDragStart }: NodePaletteProps) => {
     }
   };
 
+  const renderTechList = (category: keyof typeof technologies) => {
+    return technologies[category].map((tech) => (
+      <div
+        key={tech}
+        className={`${nodeTypeColors[category]} text-white p-2 rounded-md cursor-move text-sm hover:opacity-80 transition-opacity`}
+        draggable
+        onDragStart={(e) => onDragStart(e, { type: category, label: tech })}
+      >
+        {tech}
+      </div>
+    ));
+  };
+
   return (
     <div className="p-4">
       <h3 className="text-sm font-medium mb-3">Node Types</h3>
-      <Accordion type="single" collapsible className="space-y-2">
+      <Accordion type="multiple" className="space-y-2">
         <AccordionItem value="frontend">
           <AccordionTrigger className={`${nodeTypeColors.frontend} text-white px-3 py-2 rounded-md`}>
             Frontend
           </AccordionTrigger>
           <AccordionContent>
-            <div className="pt-2 space-y-2">
-              {frameworks.frontend.map((framework) => (
-                <div
-                  key={framework}
-                  className={`${nodeTypeColors.frontend} text-white p-2 rounded-md cursor-move text-sm`}
-                  draggable
-                  onDragStart={(e) => onDragStart(e, { type: 'frontend', label: framework })}
-                >
-                  {framework}
-                </div>
-              ))}
+            <div className="pt-2 grid grid-cols-2 gap-2">
+              {renderTechList('frontend')}
             </div>
           </AccordionContent>
         </AccordionItem>
@@ -63,17 +79,8 @@ const NodePalette = ({ onDragStart }: NodePaletteProps) => {
             Backend
           </AccordionTrigger>
           <AccordionContent>
-            <div className="pt-2 space-y-2">
-              {frameworks.backend.map((framework) => (
-                <div
-                  key={framework}
-                  className={`${nodeTypeColors.backend} text-white p-2 rounded-md cursor-move text-sm`}
-                  draggable
-                  onDragStart={(e) => onDragStart(e, { type: 'backend', label: framework })}
-                >
-                  {framework}
-                </div>
-              ))}
+            <div className="pt-2 grid grid-cols-2 gap-2">
+              {renderTechList('backend')}
             </div>
           </AccordionContent>
         </AccordionItem>
@@ -83,17 +90,8 @@ const NodePalette = ({ onDragStart }: NodePaletteProps) => {
             Database
           </AccordionTrigger>
           <AccordionContent>
-            <div className="pt-2 space-y-2">
-              {frameworks.database.map((db) => (
-                <div
-                  key={db}
-                  className={`${nodeTypeColors.database} text-white p-2 rounded-md cursor-move text-sm`}
-                  draggable
-                  onDragStart={(e) => onDragStart(e, { type: 'database', label: db })}
-                >
-                  {db}
-                </div>
-              ))}
+            <div className="pt-2 grid grid-cols-2 gap-2">
+              {renderTechList('database')}
             </div>
           </AccordionContent>
         </AccordionItem>
@@ -112,7 +110,7 @@ const NodePalette = ({ onDragStart }: NodePaletteProps) => {
               />
               {customLabel.trim() && (
                 <div
-                  className={`${nodeTypeColors.custom} text-white p-2 rounded-md cursor-move text-sm`}
+                  className={`${nodeTypeColors.custom} text-white p-2 rounded-md cursor-move text-sm hover:opacity-80 transition-opacity`}
                   draggable
                   onDragStart={handleCustomDragStart}
                 >
@@ -125,7 +123,7 @@ const NodePalette = ({ onDragStart }: NodePaletteProps) => {
       </Accordion>
       
       <div className="mt-4 text-xs text-muted-foreground">
-        Click to expand categories, then drag and drop items onto the canvas
+        Drag and drop items onto the canvas.
       </div>
     </div>
   );

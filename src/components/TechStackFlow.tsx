@@ -93,7 +93,6 @@ const TechStackFlow = ({ onSave, onExport }: { onSave: (nodes: Node[], edges: Ed
     event.preventDefault();
     if (!reactFlowWrapper.current || !reactFlowInstance) return;
 
-    const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
     const type = event.dataTransfer.getData('application/reactflow/type');
     const label = event.dataTransfer.getData('application/reactflow/label');
 
@@ -101,15 +100,18 @@ const TechStackFlow = ({ onSave, onExport }: { onSave: (nodes: Node[], edges: Ed
       return;
     }
 
+    // Calculate position: Top-left corner at cursor's flow coordinates
+    // screenToFlowPosition correctly handles zoom and pan
     const position = reactFlowInstance.screenToFlowPosition({
-      x: event.clientX - reactFlowBounds.left,
-      y: event.clientY - reactFlowBounds.top,
+      x: event.clientX,
+      y: event.clientY,
     });
 
+    // Create the new node with the calculated position (no offset)
     const newNode = {
       id: `node_${Date.now()}`,
       type: 'techNode',
-      position,
+      position, // Use the position directly from screenToFlowPosition
       data: { 
         label: label || type, 
         type,
@@ -154,8 +156,7 @@ const TechStackFlow = ({ onSave, onExport }: { onSave: (nodes: Node[], edges: Ed
 
   return (
     <div className="h-full w-full flex flex-col">
-      <div className="flex justify-between items-center p-2 bg-background border-b">
-        <h2 className="text-lg font-medium">Tech Stack Editor</h2>
+      <div className="flex justify-end items-center p-2 bg-background border-b">
         <div className="flex gap-2">
           <Button
             onClick={handleSave}

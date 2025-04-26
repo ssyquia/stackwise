@@ -3,11 +3,8 @@ import json
 import textwrap
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-# from dotenv import load_dotenv # Removed dotenv import
+from dotenv import load_dotenv # Keep import
 import google.generativeai as genai
-
-# Load environment variables from .env file - REMOVED
-# load_dotenv()
 
 app = Flask(__name__)
 # Allow requests from frontend (adjust origin if your frontend runs elsewhere)
@@ -15,24 +12,33 @@ CORS(app, resources={r"/api/*": {"origins": ["http://localhost:8080", "http://lo
 
 # --- Gemini API Setup ---
 def setup_gemini_api():
-    """Configure and initialize the Gemini API model exactly like detail-generator.py.
-    (Uses a HARDCODED API Key for temporary debugging)
+    """Configure and initialize the Gemini API model.
+    Explicitly loads .env inside the function with override=True.
     """
     try:
-        api_key = os.getenv("GEMINI_API_KEY") # Original method commented out
+        # --- Explicitly load .env from the script's directory --- 
+        script_dir = os.path.dirname(__file__)
+        dotenv_path = os.path.join(script_dir, '.env')
+        print(f"--- DEBUG: Explicitly loading .env from: {dotenv_path} with override=True ---")
+        loaded = load_dotenv(dotenv_path=dotenv_path, override=True)
+        if not loaded:
+            print(f"--- WARNING: load_dotenv did not find file at: {dotenv_path} ---")
+        # --------------------------------------------------------
+
+        # Retrieve the key AFTER the explicit load_dotenv call
+        api_key = os.getenv("GEMINI_API_KEY") 
         
         if not api_key:
-            # This check is less likely to fail now, but kept for robustness
-            raise ValueError("Hardcoded API_KEY is missing or empty.") 
+            raise ValueError("GEMINI_API_KEY not found in environment variables (check .env and ensure it was loaded)." ) 
             
         genai.configure(api_key=api_key)
 
         # Initialize the model exactly as in detail-generator.py
-        model_name = 'gemini-2.5-flash-preview-04-17'
+        model_name = 'gemini-2.5-flash-preview-04-17' # Using this model name
         model = genai.GenerativeModel(model_name)
         
-        print(f"Using {model_name} model") # Match print statement from example
-        print(f"Gemini API configured successfully with model: {model.model_name} (using HARDCODED key)")
+        print(f"Using {model_name} model") 
+        print(f"Gemini API configured successfully with model: {model.model_name} (using key from environment)")
         return model
         
     except Exception as e:

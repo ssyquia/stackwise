@@ -451,9 +451,9 @@ const Index = () => {
   };
 
   return (
-    <div className="flex h-screen w-full">
-      {/* Sidebar */}
-      <div className={`bg-card border-r transition-all ${isSidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}`}>
+    <div className="flex h-screen w-full bg-background text-foreground">
+      {/* Sidebar (Left) - Adjusted width */}
+      <div className={`bg-card border-r transition-all flex-shrink-0 ${isSidebarOpen ? 'w-72' : 'w-0 overflow-hidden'}`}>
         <div className="flex flex-col h-full">
           {/* Sidebar Header */}
           <div className="p-4 border-b flex justify-between items-center flex-shrink-0">
@@ -466,8 +466,8 @@ const Index = () => {
             </button>
           </div>
           
-          {/* Node Palette - Limit height, allow Version History to grow */}
-          <div className="border-b flex-shrink-0 overflow-y-auto max-h-[50%]">
+          {/* Node Palette - Adjusted max-height if needed */}
+          <div className="border-b flex-shrink-0 overflow-y-auto max-h-[40%]">
             <NodePalette onDragStart={onDragStart} />
           </div>
           
@@ -488,9 +488,9 @@ const Index = () => {
         </div>
       </div>
       
-      {/* Main Content */}
-      <div className="flex flex-col flex-grow" ref={reactFlowWrapper}>
-        {/* Toggle Sidebar Button (when closed) */}
+      {/* Main Content Area (Center - Flow Editor) */}
+      <div className="flex flex-col flex-grow relative" ref={reactFlowWrapper}> {/* Added relative positioning for button */}
+        {/* Toggle Sidebar Button (when closed) - Positioned relative to this container */}
         {!isSidebarOpen && (
           <button 
             onClick={() => setIsSidebarOpen(true)}
@@ -500,8 +500,8 @@ const Index = () => {
           </button>
         )}
         
-        {/* Flow Editor - Prepare nodes with handlers before passing down */}
-        <div className="flex-grow">
+        {/* Flow Editor - Takes full space in the center column */}
+        <div className="flex-grow h-full"> {/* Ensure it fills height */}
           {(() => { // IIFE to prepare nodesWithHandlers
             const nodesWithHandlers = nodes.map((node) => ({
               ...node,
@@ -515,8 +515,8 @@ const Index = () => {
             }));
 
             return (
-          <TechStackFlow 
-                nodes={nodesWithHandlers} // Pass nodes with handlers
+              <TechStackFlow 
+                nodes={nodesWithHandlers} 
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
@@ -524,22 +524,24 @@ const Index = () => {
                 onInit={(instance: ReactFlowInstance) => setReactFlowInstance(instance)}
                 onDrop={onDrop}
                 onDragOver={onDragOver}
-                nodeTypes={nodeTypes} // Pass nodeTypes
-                onSave={handleSave} // Pass the updated save handler
-            onExport={handleExportGraph}
+                nodeTypes={nodeTypes}
+                onSave={handleSave}
+                onExport={handleExportGraph}
                 onReset={() => {
                   setNodes([]);
                   setEdges([]);
-                  setActiveVersionId('initial'); // Assuming 'initial' is a valid default ID
+                  setActiveVersionId('initial');
                   toast.info("Graph Reset", { description: "Canvas cleared.", duration: 3000 });
                 }}
               />
             );
           })()}
         </div>
-        
-        {/* Chat Panel */}
-        <ChatPanel onGenerateGraph={handleGenerateGraph} isGenerating={isGenerating} />
+      </div>
+
+      {/* Chat Panel (Right) - Added fixed width and border */}
+      <div className="w-96 flex-shrink-0 border-l bg-card flex flex-col h-screen">
+         <ChatPanel onGenerateGraph={handleGenerateGraph} isGenerating={isGenerating} />
       </div>
 
       {/* Export Dialog */}

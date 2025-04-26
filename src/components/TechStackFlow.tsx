@@ -95,7 +95,7 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
           }}
         >
           <Controls />
-          <MiniMap />
+          <MiniMap position="top-right" />
           <Background 
             variant={BackgroundVariant.Dots}
             gap={12} 

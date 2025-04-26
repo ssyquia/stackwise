@@ -40,7 +40,7 @@ const NodePalette = ({ onDragStart }: NodePaletteProps) => {
   return (
     <div className="p-4">
       <h3 className="text-sm font-medium mb-3">Node Types</h3>
-      <Accordion type="multiple" className="space-y-2" defaultValue={['frontend']}>
+      <Accordion type="single" collapsible className="space-y-2" defaultValue="frontend">
         <AccordionItem value="frontend">
           <AccordionTrigger className={`${nodeTypeColors.frontend} text-white px-3 py-2 rounded-md`}>
             Frontend

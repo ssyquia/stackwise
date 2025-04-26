@@ -448,7 +448,7 @@ const Index = () => {
       <div className={`bg-card border-r transition-all ${isSidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}`}>
         <div className="flex flex-col h-full">
           {/* Sidebar Header */}
-          <div className="p-4 border-b flex justify-between items-center">
+          <div className="p-4 border-b flex justify-between items-center flex-shrink-0">
             <h2 className="font-medium">Tech Stack Builder</h2>
             <button 
               onClick={() => setIsSidebarOpen(false)}
@@ -458,15 +458,15 @@ const Index = () => {
             </button>
           </div>
           
-          {/* Node Palette */}
-          <div className="border-b">
+          {/* Node Palette - Limit height, allow Version History to grow */}
+          <div className="border-b flex-shrink-0 overflow-y-auto max-h-[50%]">
             <NodePalette onDragStart={onDragStart} />
           </div>
           
-          {/* Version History */}
-          <div className="flex-grow overflow-y-auto p-4">
-            <h3 className="text-sm font-medium mb-3">Version History</h3>
-            <div className="space-y-1">
+          {/* Version History - Takes remaining space */}
+          <div className="flex-grow overflow-y-auto p-4 flex flex-col min-h-0">
+            <h3 className="text-sm font-medium mb-3 flex-shrink-0">Version History</h3>
+            <div className="space-y-1 flex-grow overflow-y-auto">
               {versionHistory.map((version) => (
                 <VersionHistoryItem
                   key={version.id}

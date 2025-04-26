@@ -150,16 +150,24 @@ const Index = () => {
   // React Flow Handlers
   const onConnect = useCallback(
     (params: Connection) => {
+      // --- Prevent Self-Edges --- 
+      if (params.source === params.target) {
+        console.warn("Attempted to create self-edge, disallowed.");
+        toast.warning("Cannot connect a node to itself.", { duration: 3000 });
+        return; // Do not add the edge
+      }
+      // --- End Prevent Self-Edges ---
+      
       const newEdge = {
         ...params,
-        type: 'default', // Or your preferred edge type
+        type: 'default', 
         animated: false,
         style: { stroke: '#333' },
         markerEnd: { type: MarkerType.Arrow },
       };
       setEdges((eds) => addEdge(newEdge, eds));
     },
-    [setEdges]
+    [setEdges, toast] // Added toast to dependency array
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {

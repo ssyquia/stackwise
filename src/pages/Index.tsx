@@ -173,7 +173,7 @@ const Index = () => {
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [reactFlowInstance, setNodes] // Removed dependency on node change handlers
+    [reactFlowInstance, setNodes]
   );
 
   // Node Data Change Handlers
@@ -267,10 +267,11 @@ const Index = () => {
   // Handle AI graph generation
   const handleGenerateGraph = (prompt: string) => {
     // Placeholder for AI generation logic
+    // No need to add handlers here, they will be added during render
     const aiNodes: Node[] = [ // Explicitly type as Node[]
-        { id: 'ai_node_1', type: 'techNode', position: { x: 100, y: 100 }, data: { label: 'React', type: 'frontend', onLabelChange: handleNodeLabelChange, onDelete: handleNodeDelete, onDetailsChange: handleNodeDetailsChange } },
-        { id: 'ai_node_2', type: 'techNode', position: { x: 100, y: 200 }, data: { label: 'Node.js', type: 'backend', onLabelChange: handleNodeLabelChange, onDelete: handleNodeDelete, onDetailsChange: handleNodeDetailsChange } },
-        { id: 'ai_node_3', type: 'techNode', position: { x: 100, y: 300 }, data: { label: 'MongoDB', type: 'database', onLabelChange: handleNodeLabelChange, onDelete: handleNodeDelete, onDetailsChange: handleNodeDetailsChange } }
+        { id: 'ai_node_1', type: 'techNode', position: { x: 100, y: 100 }, data: { label: 'React', type: 'frontend' } },
+        { id: 'ai_node_2', type: 'techNode', position: { x: 100, y: 200 }, data: { label: 'Node.js', type: 'backend' } },
+        { id: 'ai_node_3', type: 'techNode', position: { x: 100, y: 300 }, data: { label: 'MongoDB', type: 'database' } }
     ];
     const aiEdges: Edge[] = [ // Explicitly type as Edge[]
       { id: 'ai_edge_1-2', source: 'ai_node_1', target: 'ai_node_2', type: 'default', markerEnd: { type: MarkerType.Arrow } },
@@ -373,21 +374,36 @@ const Index = () => {
           </button>
         )}
         
-        {/* Flow Editor */}
+        {/* Flow Editor - Prepare nodes with handlers before passing down */}
         <div className="flex-grow">
-          <TechStackFlow 
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onInit={(instance: ReactFlowInstance) => setReactFlowInstance(instance)}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            nodeTypes={nodeTypes}
-            onSave={handleSave}
-            onExport={handleExportGraph}
-          />
+          {(() => { // IIFE to prepare nodesWithHandlers
+            const nodesWithHandlers = nodes.map((node) => ({
+              ...node,
+              data: {
+                ...node.data,
+                // Ensure handlers are always attached
+                onLabelChange: handleNodeLabelChange,
+                onDelete: handleNodeDelete,
+                onDetailsChange: handleNodeDetailsChange,
+              },
+            }));
+
+            return (
+              <TechStackFlow 
+                nodes={nodesWithHandlers} // Pass nodes with handlers
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                onInit={(instance: ReactFlowInstance) => setReactFlowInstance(instance)}
+                onDrop={onDrop}
+                onDragOver={onDragOver}
+                nodeTypes={nodeTypes} // Pass nodeTypes
+                onSave={handleSave} // Pass the updated save handler
+                onExport={handleExportGraph}
+              />
+            );
+          })()}
         </div>
         
         {/* Chat Panel */}

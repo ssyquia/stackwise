@@ -283,20 +283,20 @@ const Index = () => {
 
       {/* Export Dialog */}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-        <DialogContent className="max-w-md w-[60vw] h-[50vh] flex flex-col">
-          <DialogHeader>
+        <DialogContent className="max-w-lg w-[70vw] h-[60vh] flex flex-col p-4">
+          <DialogHeader className="mb-2">
             <DialogTitle>Export to GitHub</DialogTitle>
             <DialogDescription>
               Review your tech stack graph data before creating a GitHub repository.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             <Textarea 
-              className="flex-1 font-mono text-xs min-h-0"
+              className="flex-1 font-mono text-xs resize-none mb-4 border border-input rounded-md p-2"
               value={exportJson}
               readOnly
             />
-            <div className="flex justify-end gap-2 pt-4">
+            <div className="flex justify-end gap-3">
               <Button 
                 variant="outline" 
                 onClick={() => setExportDialogOpen(false)}

@@ -381,7 +381,7 @@ const Index = () => {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onInit={setReactFlowInstance}
+            onInit={(instance: ReactFlowInstance) => setReactFlowInstance(instance)}
             onDrop={onDrop}
             onDragOver={onDragOver}
             nodeTypes={nodeTypes}

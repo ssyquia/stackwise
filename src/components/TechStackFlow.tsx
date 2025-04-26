@@ -33,7 +33,9 @@ const TechStackFlow = ({ onSave, onExport }: { onSave: (nodes: Node[], edges: Ed
     (params: Connection) => {
       const newEdge = {
         ...params,
-        type: 'smoothstep',
+        type: 'default',
+        animated: false,
+        style: { stroke: '#333' },
         markerEnd: {
           type: MarkerType.Arrow,
         },
@@ -183,7 +185,9 @@ const TechStackFlow = ({ onSave, onExport }: { onSave: (nodes: Node[], edges: Ed
           nodeTypes={nodeTypes}
           fitView
           defaultEdgeOptions={{
-            type: 'smoothstep',
+            type: 'default',
+            animated: false,
+            style: { stroke: '#333' },
             markerEnd: {
               type: MarkerType.Arrow,
             },

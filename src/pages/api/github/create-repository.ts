@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const octokit = new Octokit({ auth: GITHUB_TOKEN });
-    const { nodes, connections, metadata } = req.body;
+    const { nodes, edges, metadata } = req.body;
 
     // Create repository
     const repo = await octokit.repos.createForAuthenticatedUser({
@@ -36,11 +36,11 @@ This repository was generated using Stack Flow Builder.
 
 ## Tech Stack
 
-${nodes.map((node: any) => `- ${node.data.label} (${node.data.type})`).join('\n')}
+${nodes.map((node: any) => `- ${node.name}`).join('\n')}
 
 ## Connections
 
-${connections.map((conn: any) => `- ${conn.nodes[0]} ↔ ${conn.nodes[1]}`).join('\n')}
+${edges.map((edge: any) => `- ${edge.source_ID} ↔ ${edge.target_ID}`).join('\n')}
 
 ## Generated on
 

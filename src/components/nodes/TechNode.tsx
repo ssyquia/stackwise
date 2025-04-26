@@ -1,8 +1,9 @@
-
 import React, { memo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Trash2, Pen, Save } from 'lucide-react';
-import NodeDetails from './NodeDetails';
+import { Trash2, Pen, Save, MoreHorizontal } from 'lucide-react';
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 
 interface TechNodeProps {
   data: {
@@ -20,6 +21,8 @@ interface TechNodeProps {
 const TechNode = ({ data, id }: TechNodeProps) => {
   const [editing, setEditing] = useState(false);
   const [nodeLabel, setNodeLabel] = useState(data.label);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [currentDetails, setCurrentDetails] = useState(data.details || '');
   
   const nodeTypeColors = {
     frontend: 'bg-frontend text-white',
@@ -41,17 +44,18 @@ const TechNode = ({ data, id }: TechNodeProps) => {
     }
   };
 
-  const handleDetailsChange = (nodeId: string, details: string) => {
+  const handleDetailsSave = () => {
     if (data.onDetailsChange) {
-      data.onDetailsChange(nodeId, details);
+      data.onDetailsChange(id, currentDetails);
     }
+    setIsDetailsOpen(false);
   };
 
   return (
-    <NodeDetails nodeId={id} details={data.details || ''} onDetailsChange={handleDetailsChange}>
-      <div className={`px-4 py-2 shadow-md rounded-md w-40 ${nodeTypeColors[data.type]}`}>
-        <div className="flex flex-col items-center">
-          <div className="w-full flex justify-between items-center mb-2">
+    <>
+      <div className={`px-4 py-3 shadow-md rounded-md w-48 ${nodeTypeColors[data.type]}`}>
+        <div className="flex flex-col">
+          <div className="w-full flex justify-between items-center mb-3">
             {!editing ? (
               <div className="text-sm font-bold">{data.label}</div>
             ) : (
@@ -70,27 +74,36 @@ const TechNode = ({ data, id }: TechNodeProps) => {
                   className="p-1 hover:bg-white/20 rounded"
                   title="Save"
                 >
-                  <Save size={14} />
+                  <Save size={16} />
                 </button>
               ) : (
-                <button 
-                  onClick={() => setEditing(true)}
-                  className="p-1 hover:bg-white/20 rounded"
-                  title="Edit"
-                >
-                  <Pen size={14} />
-                </button>
+                <>
+                  <button 
+                    onClick={() => setEditing(true)}
+                    className="p-1 hover:bg-white/20 rounded"
+                    title="Edit"
+                  >
+                    <Pen size={16} />
+                  </button>
+                  <button 
+                    onClick={() => setIsDetailsOpen(true)}
+                    className="p-1 hover:bg-white/20 rounded"
+                    title="Details"
+                  >
+                    <MoreHorizontal size={16} />
+                  </button>
+                  <button 
+                    onClick={handleDelete}
+                    className="p-1 hover:bg-white/20 rounded text-red-200"
+                    title="Delete"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </>
               )}
-              <button 
-                onClick={handleDelete}
-                className="p-1 hover:bg-white/20 rounded text-red-200"
-                title="Delete"
-              >
-                <Trash2 size={14} />
-              </button>
             </div>
           </div>
-          <div className="text-xs">{data.type}</div>
+          <div className="text-xs opacity-80">{data.type}</div>
         </div>
         
         <Handle
@@ -104,7 +117,25 @@ const TechNode = ({ data, id }: TechNodeProps) => {
           className="w-2 h-2"
         />
       </div>
-    </NodeDetails>
+
+      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <DialogContent className="max-w-md w-[60vw] h-[40vh] flex flex-col">
+          <div className="flex-1 space-y-2">
+            <h2 className="text-base font-semibold">Node Details</h2>
+            <Textarea
+              value={currentDetails}
+              onChange={(e) => setCurrentDetails(e.target.value)}
+              placeholder="Enter node details..."
+              className="min-h-[calc(40vh-120px)] flex-1 resize-none"
+            />
+          </div>
+          <div className="flex justify-end space-x-2 mt-2">
+            <Button variant="outline" size="sm" onClick={() => setIsDetailsOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleDetailsSave}>Save Details</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

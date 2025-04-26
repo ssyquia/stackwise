@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 
+// Type for version history items
 interface VersionHistoryEntry {
   id: string;
   timestamp: string;
@@ -34,18 +35,20 @@ const Index = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportJson, setExportJson] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
+  // Get current active version data
   const getCurrentVersionData = (): VersionHistoryEntry => {
     return versionHistory.find(v => v.id === activeVersion) || versionHistory[0];
   };
 
+  // Handle node drag from palette
   const onDragStart = (event: React.DragEvent, nodeType: {type: string, label: string}) => {
     event.dataTransfer.setData('application/reactflow/type', nodeType.type);
     event.dataTransfer.setData('application/reactflow/label', nodeType.label);
     event.dataTransfer.effectAllowed = 'move';
   };
 
+  // Save current graph state
   const handleSave = (nodes: Node[], edges: Edge[]) => {
     const newVersion: VersionHistoryEntry = {
       id: `version_${Date.now()}`,
@@ -61,6 +64,7 @@ const Index = () => {
     setCurrentEdges(edges);
   };
 
+  // Restore a specific version
   const handleRestoreVersion = (versionId: string) => {
     const version = versionHistory.find(v => v.id === versionId);
     if (version) {
@@ -70,12 +74,24 @@ const Index = () => {
     }
   };
 
+  // Handle exporting the graph
   const handleExportGraph = () => {
+    const formattedNodes = currentNodes.map(node => ({
+      id: node.id,
+      name: node.data.label,
+      details: node.data.details || '',
+      x_pos: node.position.x,
+      y_pos: node.position.y,
+    }));
+
+    const formattedEdges = currentEdges.map(edge => ({
+      source_ID: edge.source,
+      target_ID: edge.target,
+    }));
+
     const graphData = {
-      nodes: currentNodes,
-      connections: currentEdges.map(edge => ({
-        nodes: [edge.source, edge.target]
-      })),
+      nodes: formattedNodes,
+      edges: formattedEdges,
       metadata: {
         name: `Tech Stack Graph - ${new Date().toISOString()}`,
         created: new Date().toISOString(),
@@ -87,91 +103,71 @@ const Index = () => {
     setExportDialogOpen(true);
   };
 
-  const handleCreateRepository = async () => {
-    try {
-      // TODO: Implement GitHub API integration
-      // This is a placeholder for the actual GitHub API call
-      const response = await fetch('/api/github/create-repository', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: exportJson,
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Repository created",
-          description: "Your tech stack repository has been created on GitHub",
-        });
-        setExportDialogOpen(false);
-      } else {
-        throw new Error('Failed to create repository');
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create repository. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleGenerateGraph = async (prompt: string) => {
-    try {
-      setIsLoading(true);
-      
-      // Call Gemini API to generate the graph
-      const response = await fetch('/api/gemini/generate-graph', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prompt }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate graph');
-      }
-
-      const { nodes, edges } = await response.json();
-
-      const newVersion: VersionHistoryEntry = {
-        id: `ai_version_${Date.now()}`,
-        timestamp: new Date().toLocaleString(),
-        description: `AI Generated: ${prompt.substring(0, 20)}...`,
-        nodes: nodes.map((node: any) => ({
-          ...node,
-          data: {
-            ...node.data,
+  // Handle AI graph generation (placeholder)
+  const handleGenerateGraph = (prompt: string) => {
+    // This would call the Gemini API in a real implementation
+    // For now, just add a placeholder version
+    const newVersion: VersionHistoryEntry = {
+      id: `ai_version_${Date.now()}`,
+      timestamp: new Date().toLocaleString(),
+      description: `AI Generated: ${prompt.substring(0, 20)}...`,
+      nodes: [
+        // Add some placeholder nodes based on the prompt
+        {
+          id: 'ai_node_1',
+          type: 'techNode',
+          position: { x: 100, y: 100 },
+          data: { 
+            label: 'React', 
+            type: 'frontend',
             onLabelChange: handleNodeLabelChange,
             onDelete: handleNodeDelete,
-            onDetailsChange: handleNodeDetailsChange,
-          },
-        })),
-        edges,
-      };
+          }
+        },
+        {
+          id: 'ai_node_2',
+          type: 'techNode',
+          position: { x: 100, y: 200 },
+          data: { 
+            label: 'Node.js', 
+            type: 'backend',
+            onLabelChange: handleNodeLabelChange,
+            onDelete: handleNodeDelete,
+          }
+        },
+        {
+          id: 'ai_node_3',
+          type: 'techNode',
+          position: { x: 100, y: 300 },
+          data: { 
+            label: 'MongoDB', 
+            type: 'database',
+            onLabelChange: handleNodeLabelChange,
+            onDelete: handleNodeDelete,
+          }
+        }
+      ],
+      edges: [
+        {
+          id: 'ai_edge_1-2',
+          source: 'ai_node_1',
+          target: 'ai_node_2'
+        },
+        {
+          id: 'ai_edge_2-3',
+          source: 'ai_node_2',
+          target: 'ai_node_3'
+        }
+      ]
+    };
 
-      setVersionHistory([...versionHistory, newVersion]);
-      setActiveVersion(newVersion.id);
-      setCurrentNodes(newVersion.nodes);
-      setCurrentEdges(newVersion.edges);
-
-      toast({
-        title: "Graph generated",
-        description: "Your tech stack graph has been generated successfully",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to generate graph. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    setVersionHistory([...versionHistory, newVersion]);
+    setActiveVersion(newVersion.id);
+    setCurrentNodes(newVersion.nodes);
+    setCurrentEdges(newVersion.edges);
   };
 
+  // Helper function for AI-generated nodes (used in handleGenerateGraph)
   const handleNodeLabelChange = (nodeId: string, newLabel: string) => {
     setCurrentNodes((nds) => 
       nds.map((node) => {
@@ -189,32 +185,46 @@ const Index = () => {
     );
   };
 
+  // Helper function for AI-generated nodes (used in handleGenerateGraph)
   const handleNodeDelete = (nodeId: string) => {
     setCurrentNodes((nds) => nds.filter((node) => node.id !== nodeId));
     setCurrentEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
   };
 
-  const handleNodeDetailsChange = (nodeId: string, newDetails: string) => {
-    setCurrentNodes((nds) => 
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              details: newDetails,
-            },
-          };
-        }
-        return node;
-      })
-    );
+  const handleCreateRepository = async () => {
+    try {
+      const response = await fetch('/api/github/create-repository', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: exportJson,
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Repository created successfully!",
+        });
+        setExportDialogOpen(false);
+      } else {
+        throw new Error('Failed to create repository');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create repository. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
     <div className="flex h-screen w-full">
+      {/* Sidebar */}
       <div className={`bg-card border-r transition-all ${isSidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}`}>
         <div className="flex flex-col h-full">
+          {/* Sidebar Header */}
           <div className="p-4 border-b flex justify-between items-center">
             <h2 className="font-medium">Tech Stack Builder</h2>
             <button 
@@ -225,10 +235,12 @@ const Index = () => {
             </button>
           </div>
           
+          {/* Node Palette */}
           <div className="border-b">
             <NodePalette onDragStart={onDragStart} />
           </div>
           
+          {/* Version History */}
           <div className="flex-grow overflow-y-auto p-4">
             <h3 className="text-sm font-medium mb-3">Version History</h3>
             <div className="space-y-1">
@@ -245,7 +257,9 @@ const Index = () => {
         </div>
       </div>
       
+      {/* Main Content */}
       <div className="flex flex-col flex-grow">
+        {/* Toggle Sidebar Button (when closed) */}
         {!isSidebarOpen && (
           <button 
             onClick={() => setIsSidebarOpen(true)}
@@ -255,31 +269,34 @@ const Index = () => {
           </button>
         )}
         
+        {/* Flow Editor */}
         <div className="flex-grow">
           <TechStackFlow 
             onSave={handleSave} 
-            onExport={handleExportGraph} 
+            onExport={handleExportGraph}
           />
         </div>
         
+        {/* Chat Panel */}
         <ChatPanel onGenerateGraph={handleGenerateGraph} />
       </div>
 
+      {/* Export Dialog */}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-md w-[60vw] h-[50vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Export to GitHub</DialogTitle>
             <DialogDescription>
-              This JSON representation of your graph can be used to generate a GitHub repository.
+              Review your tech stack graph data before creating a GitHub repository.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="flex-1 overflow-hidden flex flex-col">
             <Textarea 
-              className="h-60 font-mono text-xs"
+              className="flex-1 font-mono text-xs min-h-0"
               value={exportJson}
               readOnly
             />
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-4">
               <Button 
                 variant="outline" 
                 onClick={() => setExportDialogOpen(false)}

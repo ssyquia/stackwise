@@ -6,6 +6,9 @@ import NodePalette from '@/components/sidebar/NodePalette';
 import VersionHistoryItem from '@/components/sidebar/VersionHistoryItem';
 import TechStackFlow from '@/components/TechStackFlow';
 import ChatPanel from '@/components/ChatPanel';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 
 // Type for version history items
 interface VersionHistoryEntry {
@@ -30,6 +33,8 @@ const Index = () => {
   const [currentNodes, setCurrentNodes] = useState<Node[]>([]);
   const [currentEdges, setCurrentEdges] = useState<Edge[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportJson, setExportJson] = useState('');
 
   // Get current active version data
   const getCurrentVersionData = (): VersionHistoryEntry => {
@@ -64,9 +69,25 @@ const Index = () => {
     const version = versionHistory.find(v => v.id === versionId);
     if (version) {
       setActiveVersion(versionId);
-      setCurrentNodes(version.nodes);
-      setCurrentEdges(version.edges);
+      setCurrentNodes([...version.nodes]);
+      setCurrentEdges([...version.edges]);
     }
+  };
+
+  // Handle exporting the graph
+  const handleExportGraph = () => {
+    const graphData = {
+      nodes: currentNodes,
+      edges: currentEdges,
+      metadata: {
+        name: `Tech Stack Graph - ${new Date().toISOString()}`,
+        created: new Date().toISOString(),
+        version: activeVersion
+      }
+    };
+
+    setExportJson(JSON.stringify(graphData, null, 2));
+    setExportDialogOpen(true);
   };
 
   // Handle AI graph generation (placeholder)
@@ -83,19 +104,34 @@ const Index = () => {
           id: 'ai_node_1',
           type: 'techNode',
           position: { x: 100, y: 100 },
-          data: { label: 'React', type: 'frontend' }
+          data: { 
+            label: 'React', 
+            type: 'frontend',
+            onLabelChange: handleNodeLabelChange,
+            onDelete: handleNodeDelete,
+          }
         },
         {
           id: 'ai_node_2',
           type: 'techNode',
           position: { x: 100, y: 200 },
-          data: { label: 'Node.js', type: 'backend' }
+          data: { 
+            label: 'Node.js', 
+            type: 'backend',
+            onLabelChange: handleNodeLabelChange,
+            onDelete: handleNodeDelete,
+          }
         },
         {
           id: 'ai_node_3',
           type: 'techNode',
           position: { x: 100, y: 300 },
-          data: { label: 'MongoDB', type: 'database' }
+          data: { 
+            label: 'MongoDB', 
+            type: 'database',
+            onLabelChange: handleNodeLabelChange,
+            onDelete: handleNodeDelete,
+          }
         }
       ],
       edges: [
@@ -116,6 +152,30 @@ const Index = () => {
     setActiveVersion(newVersion.id);
     setCurrentNodes(newVersion.nodes);
     setCurrentEdges(newVersion.edges);
+  };
+
+  // Helper function for AI-generated nodes (used in handleGenerateGraph)
+  const handleNodeLabelChange = (nodeId: string, newLabel: string) => {
+    setCurrentNodes((nds) => 
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              label: newLabel,
+            },
+          };
+        }
+        return node;
+      })
+    );
+  };
+
+  // Helper function for AI-generated nodes (used in handleGenerateGraph)
+  const handleNodeDelete = (nodeId: string) => {
+    setCurrentNodes((nds) => nds.filter((node) => node.id !== nodeId));
+    setCurrentEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
   };
 
   return (
@@ -168,6 +228,13 @@ const Index = () => {
           </button>
         )}
         
+        {/* Header with Export Button */}
+        <div className="bg-background p-2 flex justify-end border-b">
+          <Button onClick={handleExportGraph} variant="outline" size="sm">
+            Export to GitHub
+          </Button>
+        </div>
+        
         {/* Flow Editor */}
         <div className="flex-grow">
           <TechStackFlow onSave={handleSave} />
@@ -176,6 +243,34 @@ const Index = () => {
         {/* Chat Panel */}
         <ChatPanel onGenerateGraph={handleGenerateGraph} />
       </div>
+
+      {/* Export Dialog */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Export to GitHub</DialogTitle>
+            <DialogDescription>
+              This JSON representation of your graph can be used to generate a GitHub repository.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <Textarea 
+              className="h-60 font-mono text-xs"
+              value={exportJson}
+              readOnly
+            />
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setExportDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button>Create Repository</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

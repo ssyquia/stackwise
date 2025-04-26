@@ -38,6 +38,28 @@ const TechStackFlow = ({ onSave }: { onSave: (nodes: Node[], edges: Edge[]) => v
     event.dataTransfer.dropEffect = 'move';
   }, []);
 
+  const handleNodeLabelChange = (nodeId: string, newLabel: string) => {
+    setNodes((nds) => 
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              label: newLabel,
+            },
+          };
+        }
+        return node;
+      })
+    );
+  };
+
+  const handleNodeDelete = (nodeId: string) => {
+    setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+    setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+  };
+
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
@@ -62,7 +84,12 @@ const TechStackFlow = ({ onSave }: { onSave: (nodes: Node[], edges: Edge[]) => v
         id: `node_${Date.now()}`,
         type: 'techNode',
         position,
-        data: { label: label || type, type },
+        data: { 
+          label: label || type, 
+          type, 
+          onLabelChange: handleNodeLabelChange,
+          onDelete: handleNodeDelete,
+        },
       };
 
       setNodes((nds) => nds.concat(newNode));

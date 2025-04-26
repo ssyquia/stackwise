@@ -149,7 +149,7 @@ def generate_tech_stack_graph(description):
     Position the nodes logically with xpos and ypos coordinates.
     Make edges between nodes that are related (e.g., frontend calls backend API).
     
-    Return ONLY valid JSON without any explanation or additional text.
+    Return ONLY valid JSON without any explanation or additional text. Before returning the JSON, make sure to check that it is valid.
     """)
     # --- END NEW PROMPT ---
 

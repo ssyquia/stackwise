@@ -9,7 +9,7 @@ interface TechNodeProps {
   data: {
     label: string;
     details?: string;
-    type: 'frontend' | 'backend' | 'database' | 'custom';
+    type: 'frontend' | 'backend' | 'database' | 'api' | 'deployment' | 'custom';
     icon?: React.ReactNode;
     onDelete?: (id: string) => void;
     onLabelChange?: (id: string, label: string) => void;
@@ -25,10 +25,12 @@ const TechNode = ({ data, id }: TechNodeProps) => {
   const [currentDetails, setCurrentDetails] = useState(data.details || '');
   
   const nodeTypeColors = {
-    frontend: 'bg-frontend text-white',
-    backend: 'bg-backend text-white',
-    database: 'bg-database text-white',
-    custom: 'bg-custom text-white',
+    frontend: 'bg-blue-500 text-white',
+    backend: 'bg-green-500 text-white',
+    database: 'bg-yellow-500 text-white',
+    api: 'bg-purple-500 text-white',
+    deployment: 'bg-red-500 text-white',
+    custom: 'bg-gray-500 text-white',
   };
 
   const handleLabelChange = () => {
@@ -53,7 +55,7 @@ const TechNode = ({ data, id }: TechNodeProps) => {
 
   return (
     <>
-      <div className={`relative px-3 py-2 shadow-md rounded-md w-40 h-24 ${nodeTypeColors[data.type]} flex flex-col justify-between`}>
+      <div className={`relative px-3 py-2 shadow-md rounded-md w-40 h-24 ${nodeTypeColors[data.type] || nodeTypeColors.custom} flex flex-col justify-between`}>
         {/* Top Section: Label/Input and Details Button */}
         <div className="flex justify-between items-start">
           {!editing ? (

@@ -64,13 +64,13 @@ const Index = () => {
     }
     // Default initial version if nothing in localStorage or parsing failed
     return [
-      {
-        id: 'initial',
-        timestamp: new Date().toLocaleString(),
-        description: 'Initial Version',
-        nodes: [],
-        edges: [],
-      }
+    {
+      id: 'initial',
+      timestamp: new Date().toLocaleString(),
+      description: 'Initial Version',
+      nodes: [],
+      edges: [],
+    }
     ];
   };
 
@@ -178,20 +178,25 @@ const Index = () => {
 
       if (typeof type === 'undefined' || !type) return;
 
-      const position = reactFlowInstance.screenToFlowPosition({
-        x: event.clientX - reactFlowBounds.left,
-        y: event.clientY - reactFlowBounds.top,
-      });
+      // 1. Calculate correct screen position relative to the flow container
+      const screenPosition = {
+        x: event.clientX,
+        y: event.clientY,
+      };
+      
+      // 2. Convert screen position to flow coordinates
+      const position = reactFlowInstance.screenToFlowPosition(screenPosition);
 
-      const newNode: Node = { // Ensure newNode conforms to Node type
+      // 3. Create the new node using the correctly calculated position
+      const newNode: Node = { 
         id: `node_${Date.now()}`,
-        type: 'techNode',
-        position,
+        type: 'techNode', // Use the correct node type
+        position: position, // Assign the calculated position object correctly
         data: {
           label: label || type,
-          type: type, // Pass type for styling/logic in TechNode
-          details: '', // Add details field
-          // Pass handlers directly
+          type: type, 
+          details: '', 
+          // Pass handlers directly (ensure these exist)
           onLabelChange: handleNodeLabelChange,
           onDelete: handleNodeDelete,
           onDetailsChange: handleNodeDetailsChange,
@@ -200,6 +205,7 @@ const Index = () => {
 
       setNodes((nds) => nds.concat(newNode));
     },
+    // Ensure all dependencies for handlers are included if necessary
     [reactFlowInstance, setNodes]
   );
 
@@ -502,7 +508,7 @@ const Index = () => {
             }));
 
             return (
-              <TechStackFlow 
+          <TechStackFlow 
                 nodes={nodesWithHandlers} // Pass nodes with handlers
                 edges={edges}
                 onNodesChange={onNodesChange}
@@ -513,7 +519,7 @@ const Index = () => {
                 onDragOver={onDragOver}
                 nodeTypes={nodeTypes} // Pass nodeTypes
                 onSave={handleSave} // Pass the updated save handler
-                onExport={handleExportGraph}
+            onExport={handleExportGraph}
                 onReset={() => {
                   setNodes([]);
                   setEdges([]);

@@ -5,19 +5,17 @@ import { Send } from 'lucide-react';
 
 interface ChatPanelProps {
   onGenerateGraph: (prompt: string) => void;
+  isGenerating: boolean;
 }
 
-const ChatPanel = ({ onGenerateGraph }: ChatPanelProps) => {
+const ChatPanel = ({ onGenerateGraph, isGenerating }: ChatPanelProps) => {
   const [prompt, setPrompt] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (prompt.trim()) {
-      setIsLoading(true);
+    if (prompt.trim() && !isGenerating) {
       onGenerateGraph(prompt);
       setPrompt('');
-      setIsLoading(false);
     }
   };
 
@@ -32,15 +30,16 @@ const ChatPanel = ({ onGenerateGraph }: ChatPanelProps) => {
             className="pr-12 resize-none min-h-[60px] max-h-[200px]"
             rows={1}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === 'Enter' && !e.shiftKey && !isGenerating) {
                 e.preventDefault();
                 handleSubmit(e);
               }
             }}
+            disabled={isGenerating}
           />
           <Button
             type="submit"
-            disabled={isLoading || !prompt.trim()}
+            disabled={isGenerating || !prompt.trim()}
             className="absolute right-2 bottom-2 h-8 w-8 p-0"
             variant="ghost"
           >

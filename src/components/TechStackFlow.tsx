@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import {
   ReactFlow,
   Background,
@@ -17,6 +17,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
+import ResetGraphButton from './ResetGraphButton';
 
 interface TechStackFlowProps {
   nodes: Node[];
@@ -30,6 +31,7 @@ interface TechStackFlowProps {
   nodeTypes: NodeTypes;
   onSave: () => void;
   onExport: () => void;
+  onReset: () => void;
 }
 
 const TechStackFlow: React.FC<TechStackFlowProps> = ({ 
@@ -43,7 +45,8 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
   onDragOver,
   nodeTypes,
   onSave, 
-  onExport 
+  onExport,
+  onReset
 }) => {
   const handleSave = () => {
     onSave();
@@ -61,6 +64,7 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
           >
             Save Graph
           </Button>
+          <ResetGraphButton onReset={onReset} size="sm" />
           <Button
             onClick={onExport}
             size="sm"

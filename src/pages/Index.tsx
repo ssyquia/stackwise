@@ -7,7 +7,11 @@ import {
   addEdge, 
   Connection, 
   MarkerType,
-  ReactFlowInstance
+  ReactFlowInstance,
+  OnNodesChange,
+  OnEdgesChange,
+  applyNodeChanges,
+  applyEdgeChanges
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import NodePalette from '@/components/sidebar/NodePalette';
@@ -19,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import TechNode from '@/components/nodes/TechNode';
+import ResetGraphButton from '@/components/ResetGraphButton';
 
 const LOCAL_STORAGE_KEY = 'techStackGraphHistory';
 
@@ -80,6 +85,7 @@ const Index = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportJson, setExportJson] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Effect to mark initial load as complete after first render
   useEffect(() => {
@@ -90,23 +96,44 @@ const Index = () => {
   useEffect(() => {
     if (initialLoadComplete && typeof window !== 'undefined') {
       // Find the currently active version in history and update its nodes/edges
-      // This is needed because nodes/edges state updates separately now
       const updatedHistory = versionHistory.map(version => {
         if (version.id === activeVersionId) {
-          return { ...version, nodes: nodes, edges: edges };
+          // Ensure we're creating new objects/arrays to avoid mutation issues
+          return { ...version, nodes: [...nodes], edges: [...edges] }; 
         }
         return version;
       });
-      // Only save if the history actually changed to avoid infinite loops
-      if (JSON.stringify(updatedHistory) !== JSON.stringify(versionHistory)) {
-         setVersionHistory(updatedHistory); // Update the history state itself
-         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedHistory));
-      } else if (JSON.stringify(versionHistory) !== localStorage.getItem(LOCAL_STORAGE_KEY)) {
-        // Or save if history state is different from localStorage (e.g., on initial load correction)
-         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(versionHistory));
+
+      // Prepare the stringified history once
+      const historyJson = JSON.stringify(updatedHistory);
+      const currentStorageJson = localStorage.getItem(LOCAL_STORAGE_KEY);
+
+      // Check if the state representation differs from the stored one
+      if (historyJson !== currentStorageJson) {
+         try {
+             localStorage.setItem(LOCAL_STORAGE_KEY, historyJson);
+             // If the state *itself* needed updating (rare case, defensive)
+             if(JSON.stringify(updatedHistory) !== JSON.stringify(versionHistory)) {
+                 setVersionHistory(updatedHistory); 
+             }
+         } catch (storageError) {
+             console.warn("LocalStorage Warning (History Sync Effect): Failed to save graph history. Data might be lost on refresh.", storageError);
+             // Optionally show a less intrusive warning, or none at all
+             // toast({ title: "Storage Warning", description: "Could not sync history to storage.", variant: "outline", duration: 3000 });
+             // Importantly, DO NOT THROW - allow UI updates to proceed
+             
+             // Still update the state if it changed, even if storage failed
+             if(JSON.stringify(updatedHistory) !== JSON.stringify(versionHistory)) {
+                 setVersionHistory(updatedHistory); 
+             }
+         }
       }
     }
-  }, [nodes, edges, activeVersionId, versionHistory, initialLoadComplete]);
+  // NOTE: Reduced dependencies to avoid potentially excessive writes.
+  // Re-evaluate if active version state *must* be saved on every node/edge change.
+  // For now, focus on saving when the version *itself* changes or history is explicitly added.
+  // }, [nodes, edges, activeVersionId, versionHistory, initialLoadComplete]); 
+  }, [activeVersionId, versionHistory, initialLoadComplete]); // Try saving primarily when active version changes or history array changes
 
   // Get current active version data
   const getCurrentVersionData = (): VersionHistoryEntry => {
@@ -265,36 +292,121 @@ const Index = () => {
   };
 
   // Handle AI graph generation
-  const handleGenerateGraph = (prompt: string) => {
-    // Placeholder for AI generation logic
-    // No need to add handlers here, they will be added during render
-    const aiNodes: Node[] = [ // Explicitly type as Node[]
-        { id: 'ai_node_1', type: 'techNode', position: { x: 100, y: 100 }, data: { label: 'React', type: 'frontend' } },
-        { id: 'ai_node_2', type: 'techNode', position: { x: 100, y: 200 }, data: { label: 'Node.js', type: 'backend' } },
-        { id: 'ai_node_3', type: 'techNode', position: { x: 100, y: 300 }, data: { label: 'MongoDB', type: 'database' } }
-    ];
-    const aiEdges: Edge[] = [ // Explicitly type as Edge[]
-      { id: 'ai_edge_1-2', source: 'ai_node_1', target: 'ai_node_2', type: 'default', markerEnd: { type: MarkerType.Arrow } },
-      { id: 'ai_edge_2-3', source: 'ai_node_2', target: 'ai_node_3', type: 'default', markerEnd: { type: MarkerType.Arrow } }
-    ];
+  const handleGenerateGraph = useCallback(async (prompt: string) => {
+    if (!prompt.trim()) {
+      toast({ title: "Input Error", description: "Please enter a description.", variant: "destructive" });
+      return;
+    }
+    console.log(`Generating graph for prompt: "${prompt}"`);
+    setIsGenerating(true); // Show loading state
+    toast({ title: "Generating Graph...", description: "Asking AI to create your tech stack..." });
 
-    const newVersion: VersionHistoryEntry = {
-      id: `ai_version_${Date.now()}`,
-      timestamp: new Date().toLocaleString(),
-      description: `AI Generated: ${prompt.substring(0, 20)}...`,
-      nodes: aiNodes,
-      edges: aiEdges
-    };
+    try {
+      // Call the Flask backend endpoint
+      const response = await fetch('http://localhost:5001/api/generate-graph', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ description: prompt }),
+      });
 
-    const updatedHistory = [...versionHistory, newVersion];
+      if (!response.ok) {
+        let errorMsg = `HTTP error! status: ${response.status}`;
+        try {
+            const errorData = await response.json();
+            errorMsg = errorData.error || errorMsg;
+        } catch (jsonError) {
+            // If response is not JSON, use the status text
+            errorMsg = response.statusText || errorMsg;
+        }
+        throw new Error(errorMsg);
+      }
 
-    // Update state
-    setVersionHistory(updatedHistory);
-    setActiveVersionId(newVersion.id);
-    setNodes(aiNodes); // Set the nodes/edges state directly
-    setEdges(aiEdges);
-    toast({ title: "AI Graph Generated", description: `Created new version: ${newVersion.description}` });
-  };
+      const generatedData = await response.json();
+
+      // Validate response structure (basic)
+      if (!generatedData || !Array.isArray(generatedData.nodes) || !Array.isArray(generatedData.edges)) {
+        throw new Error("Invalid data structure received from AI backend.");
+      }
+
+      console.log("Received graph data from backend:", generatedData);
+
+      // --- Create and Save New Version --- 
+      const newVersionId = `ai_version_${Date.now()}`;
+      // Ensure nodes/edges are copied correctly and have basic validation
+      const newNodes = Array.isArray(generatedData.nodes) ? [...generatedData.nodes] : [];
+      const newEdges = Array.isArray(generatedData.edges) ? [...generatedData.edges] : [];
+
+      const newVersion: VersionHistoryEntry = {
+        id: newVersionId,
+        timestamp: new Date().toISOString(),
+        description: `AI: ${prompt.substring(0, 30)}...`,
+        nodes: newNodes, 
+        edges: newEdges, 
+      };
+
+      // 1. Save the new version data to localStorage (with error handling)
+      try {
+          localStorage.setItem(
+            `graphVersion_${newVersionId}`,
+            JSON.stringify(newVersion)
+          );
+      } catch (storageError) {
+          console.error("LocalStorage Error (Version Data):", storageError);
+          // Optionally inform the user, but don't necessarily block the state update
+          toast({
+            title: "Storage Warning",
+            description: "Failed to save the new version to browser storage. The current session is updated, but this version might be lost on refresh.",
+            variant: "destructive",
+            duration: 7000,
+          });
+          // We might still proceed to update the state even if storage fails
+          // throw new Error("Failed to save new version data to storage."); // Remove original error throw
+      }
+
+      // 2. Update the index in localStorage (with error handling)
+      const indexJson = localStorage.getItem('graphVersionIndex') || "[]";
+      let currentIds: string[] = [];
+      try {
+          const parsedIds = JSON.parse(indexJson);
+          if(Array.isArray(parsedIds)) currentIds = parsedIds;
+      } catch(e){ console.warn("Index parse error on AI save"); }
+      currentIds.push(newVersionId);
+
+      try {
+          localStorage.setItem('graphVersionIndex', JSON.stringify(currentIds));
+      } catch (storageError) {
+          console.error("LocalStorage Error (Index Data):", storageError);
+          // Optionally inform the user
+          toast({
+            title: "Storage Warning",
+            description: "Failed to update version index in browser storage. History might be inconsistent on refresh.",
+            variant: "destructive",
+            duration: 7000,
+          });
+          // throw new Error("Failed to update version index in storage."); // Remove original error throw
+      }
+
+      // 3. Update React State (this should happen even if localStorage fails)
+      setVersionHistory((prevHistory) => [...prevHistory, newVersion]);
+      setActiveVersionId(newVersionId);
+      setNodes(newNodes); // Update the displayed graph
+      setEdges(newEdges); // Update the displayed graph
+
+      toast({ title: "AI Graph Generated", description: "New graph loaded and saved." });
+
+    } catch (error) {
+      console.error("Error generating graph via backend:", error);
+      toast({
+        title: "AI Generation Error",
+        description: error.message || "An unknown error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+       setIsGenerating(false); // Hide loading state
+    }
+  }, [versionHistory]); // Dependency on versionHistory to calculate next description potentially
 
   const handleCreateRepository = async () => {
     try {
@@ -355,6 +467,7 @@ const Index = () => {
                   version={version}
                   onRestore={handleRestoreVersion}
                   isActive={version.id === activeVersionId}
+                  disabled={isGenerating}
                 />
               ))}
             </div>
@@ -401,13 +514,19 @@ const Index = () => {
                 nodeTypes={nodeTypes} // Pass nodeTypes
                 onSave={handleSave} // Pass the updated save handler
                 onExport={handleExportGraph}
+                onReset={() => {
+                  setNodes([]);
+                  setEdges([]);
+                  setActiveVersionId('initial'); // Assuming 'initial' is a valid default ID
+                  toast({ title: "Graph Reset", description: "Canvas cleared." });
+                }}
               />
             );
           })()}
         </div>
         
         {/* Chat Panel */}
-        <ChatPanel onGenerateGraph={handleGenerateGraph} />
+        <ChatPanel onGenerateGraph={handleGenerateGraph} isGenerating={isGenerating} />
       </div>
 
       {/* Export Dialog */}

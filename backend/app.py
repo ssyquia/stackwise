@@ -140,13 +140,13 @@ def generate_tech_stack_graph(description):
     3. Position nodes logically using `position.x` and `position.y` (e.g., within 0-1000 canvas units).
     4. Create edges between related components (frontend -> backend, backend -> database, etc.). Ensure `source` and `target` use the correct string `id`s of the nodes.
     5. Use descriptive, unique STRING `id`s for both nodes and edges.
-    6. **IMPORTANT for `data.details`**: For EACH node, generate a concise but informative textual description covering:
-        - Key features/purpose relevant to this project.
-        - Typical pricing model (e.g., open-source, usage-based).
-        - Common compatibility considerations with related components in *this* stack.
-        - Any notable performance characteristics or limitations.
-        - 1-2 common alternatives.
-       Keep the description suitable for an info panel (a few sentences to a short paragraph per node).
+    6. **IMPORTANT for `data.details`**: For EACH node, provide key technical specifications relevant to this project, focusing on versions, specific configurations, or sub-components. Avoid generic descriptions or environment variables. Examples:
+        - API Node (e.g., Gemini API): Model name ('gemini-1.5-pro-latest'), specific API endpoint used.
+        - Database Node (e.g., MongoDB): Version (e.g., '7.0'), specific collection name ('orders'), maybe a key configuration aspect (e.g., 'sharded cluster').
+        - Backend Node (e.g., Node.js): Runtime version ('v20.x'), key framework used ('Express 5').
+        - Frontend Node (e.g., React): Library version ('18.2'), specific architecture used ('Vite build', 'Next.js App Router').
+        - Deployment Node (e.g., AWS): Specific service and tier/type ('EC2 t3.medium', 'S3 Standard bucket').
+       Keep the details concise and focused on specifications. If a specific version or configuration isn't implied by the description, provide a typical or latest stable version as a sensible default.
     7. Ensure the final output is ONLY the JSON object, with no surrounding text or explanations. Before returning the JSON, make sure to check that it is valid.
     """)
     # --- END UPDATED PROMPT ---

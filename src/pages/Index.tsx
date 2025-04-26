@@ -21,7 +21,7 @@ import ChatPanel from '@/components/ChatPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from "@/components/ui/sonner"
 import TechNode from '@/components/nodes/TechNode';
 import ResetGraphButton from '@/components/ResetGraphButton';
 
@@ -252,7 +252,7 @@ const Index = () => {
     setVersionHistory(updatedHistory);
     setActiveVersionId(newVersion.id); // Activate the new version
     // No need to setCurrentNodes/Edges here, state already reflects current graph
-    toast({ title: "Graph Saved", description: `Version ${updatedHistory.length} saved.` });
+    toast.success("Graph Saved", { description: `Version ${updatedHistory.length} saved.`, duration: 3000 });
   };
 
   const handleRestoreVersion = (versionId: string) => {
@@ -262,9 +262,9 @@ const Index = () => {
       // Set nodes/edges state directly using setters from hooks
       setNodes([...version.nodes]); // Use spread for new array reference
       setEdges([...version.edges]); // Use spread for new array reference
-      toast({ title: "Version Restored", description: `Restored: ${version.description}` });
+      toast.info("Version Restored", { description: `Restored: ${version.description}`, duration: 3000 });
     } else {
-       toast({ title: "Error", description: "Version not found.", variant: "destructive"});
+       toast.error("Error", { description: "Version not found.", duration: 3000 });
     }
   };
 
@@ -300,12 +300,16 @@ const Index = () => {
   // Handle AI graph generation
   const handleGenerateGraph = useCallback(async (prompt: string) => {
     if (!prompt.trim()) {
-      toast({ title: "Input Error", description: "Please enter a description.", variant: "destructive" });
+      toast.error("Input Error", { description: "Please enter a description.", duration: 3000 });
       return;
     }
-    console.log(`Generating graph for prompt: "${prompt}"`);
+    console.log(`Generating graph for prompt: \"${prompt}\"`);
     setIsGenerating(true); // Show loading state
-    toast({ title: "Generating Graph...", description: "Asking AI to create your tech stack..." });
+    
+    const loadingToastId = toast.loading(
+        "Generating Graph...", 
+        { description: "Asking AI to create your tech stack..." }
+    );
 
     try {
       // Call the Flask backend endpoint
@@ -361,10 +365,8 @@ const Index = () => {
       } catch (storageError) {
           console.error("LocalStorage Error (Version Data):", storageError);
           // Optionally inform the user, but don't necessarily block the state update
-          toast({
-            title: "Storage Warning",
+          toast.error("Storage Warning", {
             description: "Failed to save the new version to browser storage. The current session is updated, but this version might be lost on refresh.",
-            variant: "destructive",
             duration: 7000,
           });
           // We might still proceed to update the state even if storage fails
@@ -385,10 +387,8 @@ const Index = () => {
       } catch (storageError) {
           console.error("LocalStorage Error (Index Data):", storageError);
           // Optionally inform the user
-          toast({
-            title: "Storage Warning",
+          toast.error("Storage Warning", {
             description: "Failed to update version index in browser storage. History might be inconsistent on refresh.",
-            variant: "destructive",
             duration: 7000,
           });
           // throw new Error("Failed to update version index in storage."); // Remove original error throw
@@ -400,19 +400,20 @@ const Index = () => {
       setNodes(newNodes); // Update the displayed graph
       setEdges(newEdges); // Update the displayed graph
 
-      toast({ title: "AI Graph Generated", description: "New graph loaded and saved." });
+      toast.success("AI Graph Generated", { description: "New graph loaded and saved.", duration: 3000 });
 
     } catch (error) {
       console.error("Error generating graph via backend:", error);
-      toast({
-        title: "AI Generation Error",
+      // --- Error --- 
+      toast.error("AI Generation Error", {
         description: error.message || "An unknown error occurred.",
-        variant: "destructive",
+        duration: 3000, 
       });
     } finally {
        setIsGenerating(false); // Hide loading state
+       toast.dismiss(loadingToastId);
     }
-  }, [versionHistory]); // Dependency on versionHistory to calculate next description potentially
+  }, [versionHistory, setNodes, setEdges, setActiveVersionId, setVersionHistory]);
 
   const handleCreateRepository = async () => {
     try {
@@ -425,19 +426,18 @@ const Index = () => {
       });
 
       if (response.ok) {
-        toast({
-          title: "Success",
+        toast.success("Success", {
           description: "Repository created successfully!",
+          duration: 3000,
         });
         setExportDialogOpen(false);
       } else {
         throw new Error('Failed to create repository');
       }
     } catch (error) {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: "Failed to create repository. Please try again.",
-        variant: "destructive",
+        duration: 3000,
       });
     }
   };
@@ -473,7 +473,6 @@ const Index = () => {
                   version={version}
                   onRestore={handleRestoreVersion}
                   isActive={version.id === activeVersionId}
-                  disabled={isGenerating}
                 />
               ))}
             </div>
@@ -524,7 +523,7 @@ const Index = () => {
                   setNodes([]);
                   setEdges([]);
                   setActiveVersionId('initial'); // Assuming 'initial' is a valid default ID
-                  toast({ title: "Graph Reset", description: "Canvas cleared." });
+                  toast.info("Graph Reset", { description: "Canvas cleared.", duration: 3000 });
                 }}
               />
             );

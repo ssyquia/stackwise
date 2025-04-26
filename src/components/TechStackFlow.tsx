@@ -11,6 +11,7 @@ import {
   Connection,
   Edge,
   Node,
+  MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';  // Updated import path
 import { useToast } from '@/hooks/use-toast';
@@ -29,7 +30,16 @@ const TechStackFlow = ({ onSave, onExport }: { onSave: (nodes: Node[], edges: Ed
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    (params: Connection) => {
+      const newEdge = {
+        ...params,
+        type: 'smoothstep',
+        markerEnd: {
+          type: MarkerType.Arrow,
+        },
+      };
+      setEdges((eds) => addEdge(newEdge, eds));
+    },
     [setEdges]
   );
 
@@ -112,6 +122,27 @@ const TechStackFlow = ({ onSave, onExport }: { onSave: (nodes: Node[], edges: Ed
   }, [reactFlowInstance, setNodes]);
 
   const handleSave = () => {
+    const formattedNodes = nodes.map(node => ({
+      id: node.id,
+      name: node.data.label,
+      details: node.data.details || '',
+      x_pos: node.position.x,
+      y_pos: node.position.y,
+    }));
+
+    const formattedEdges = edges.map(edge => ({
+      source_ID: edge.source,
+      target_ID: edge.target,
+    }));
+
+    const graphData = {
+      nodes: formattedNodes,
+      edges: formattedEdges,
+      metadata: {
+        created: new Date().toISOString(),
+      }
+    };
+
     onSave(nodes, edges);
     toast({
       title: "Graph saved",
@@ -151,11 +182,17 @@ const TechStackFlow = ({ onSave, onExport }: { onSave: (nodes: Node[], edges: Ed
           onDragOver={onDragOver}
           nodeTypes={nodeTypes}
           fitView
+          defaultEdgeOptions={{
+            type: 'smoothstep',
+            markerEnd: {
+              type: MarkerType.Arrow,
+            },
+          }}
         >
           <Controls />
           <MiniMap />
           <Background 
-            variant={BackgroundVariant.Dots}  // Updated to use BackgroundVariant enum
+            variant={BackgroundVariant.Dots}
             gap={12} 
             size={1} 
           />

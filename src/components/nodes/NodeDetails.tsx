@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,7 @@ interface NodeDetailsProps {
   onDetailsChange: (id: string, details: string) => void;
 }
 
-const NodeDetails = ({ children, nodeId, details, onDetailsChange, }: NodeDetailsProps) => {
+const NodeDetails = ({ children, nodeId, details, onDetailsChange }: NodeDetailsProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentDetails, setCurrentDetails] = useState(details);
 
@@ -26,7 +25,7 @@ const NodeDetails = ({ children, nodeId, details, onDetailsChange, }: NodeDetail
         <Button 
           variant="outline" 
           size="sm" 
-          className="h-6 px-2 text-xs"
+          className="h-6 px-2 text-xs mr-2"
           onClick={() => setIsOpen(true)}
         >
           Details
@@ -34,14 +33,14 @@ const NodeDetails = ({ children, nodeId, details, onDetailsChange, }: NodeDetail
       </div>
       {children}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-3xl h-[80vh] flex flex-col">
+        <DialogContent className="max-w-xl w-[80vw] h-[60vh] flex flex-col">
           <div className="flex-1 space-y-4">
             <h2 className="text-lg font-semibold">Node Details</h2>
             <Textarea
               value={currentDetails}
               onChange={(e) => setCurrentDetails(e.target.value)}
               placeholder="Enter node details..."
-              className="min-h-[400px] flex-1"
+              className="min-h-[calc(60vh-150px)] flex-1 resize-none"
             />
           </div>
           <div className="flex justify-end space-x-2 mt-4">

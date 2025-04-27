@@ -32,6 +32,7 @@ interface TechStackFlowProps {
   onDragOver: React.DragEventHandler<HTMLDivElement>;
   nodeTypes: NodeTypes;
   onSave: () => void;
+  onExport: () => void;
   onReset: () => void;
   onAutoLayout: () => void;
   isSidebarCollapsed: boolean;
@@ -48,6 +49,7 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
   onDragOver,
   nodeTypes,
   onSave, 
+  onExport,
   onReset,
   onAutoLayout,
   isSidebarCollapsed
@@ -59,7 +61,7 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
   return (
     <div className="h-full w-full flex flex-col">
       <div className="flex justify-between items-center p-2 bg-background border-b">
-        <h2 className="px-2 text-lg font-medium">stackwise</h2>
+        <h2 className="px-2 text-lg font-medium">systems.dev</h2>
         <div className="flex gap-2">
           <Button
             onClick={handleSave}
@@ -77,6 +79,12 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
           >
             <Layout className="h-4 w-4 mr-1" />
             Layout
+          </Button>
+          <Button
+            onClick={onExport}
+            size="sm"
+          >
+            Export to GitHub
           </Button>
         </div>
       </div>
@@ -96,12 +104,9 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
           defaultEdgeOptions={{
             type: 'default',
             animated: false,
-            style: { stroke: '#000000', strokeWidth: 1.5 },
+            style: { stroke: '#333' },
             markerEnd: {
-              type: MarkerType.ArrowClosed,
-              width: 14,
-              height: 14,
-              color: '#000000',
+              type: MarkerType.Arrow,
             },
           }}
         >

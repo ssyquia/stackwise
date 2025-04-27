@@ -59,7 +59,14 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
   return (
     <div className="h-full w-full flex flex-col">
       <div className="flex justify-between items-center p-2 bg-background border-b">
-        <h2 className="px-2 text-lg font-medium">stackwise</h2>
+        <h2 className="px-2 text-lg font-medium flex items-center">
+          <img 
+            src="/stackwiseLogo.png"
+            alt="Stackwise logo" 
+            className="h-5 w-5 mr-2"
+          /> 
+          <span>stackwise</span>
+        </h2>
         <div className="flex gap-2">
           <Button
             onClick={handleSave}

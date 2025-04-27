@@ -410,7 +410,7 @@ const Index = () => {
       const newVersionId = `ai_version_${Date.now()}`;
       const newNodes = Array.isArray(generatedData.nodes) ? [...generatedData.nodes] : [];
       const newEdges = Array.isArray(generatedData.edges) ? [...generatedData.edges] : [];
-      const newVersion: VersionHistoryEntry = {
+    const newVersion: VersionHistoryEntry = {
         id: newVersionId,
         timestamp: new Date().toISOString(),
         description: `AI ${graphAction}: ${prompt.substring(0, 30)}...`,
@@ -514,56 +514,56 @@ const Index = () => {
       <div className={`bg-card border-r transition-all flex-shrink-0 ${isSidebarOpen ? 'w-72' : 'w-0 overflow-hidden border-none'}`}>
         {/* Conditionally render sidebar content only if not collapsed */} 
         {isSidebarOpen && (
-          <div className="flex flex-col h-full">
-            {/* Sidebar Header */} 
+        <div className="flex flex-col h-full">
+          {/* Sidebar Header */}
             <div className="p-4 border-b flex justify-between items-center flex-shrink-0">
-              <h2 className="font-medium">Tech Stack Builder</h2>
-              <button 
-                onClick={() => setIsSidebarOpen(false)}
-                className="text-muted-foreground hover:text-foreground"
+            <h2 className="font-medium">Tech Stack Builder</h2>
+            <button 
+              onClick={() => setIsSidebarOpen(false)}
+              className="text-muted-foreground hover:text-foreground"
                 title="Close Sidebar"
-              >
+            >
                 <PanelLeftClose size={16} /> {/* Use appropriate icon */} 
-              </button>
-            </div>
-            {/* Node Palette */}
+            </button>
+          </div>
+          {/* Node Palette */}
             <div className="border-b flex-shrink-0 overflow-y-auto max-h-[40%]">
-              <NodePalette onDragStart={onDragStart} />
-            </div>
-            {/* Version History */}
+            <NodePalette onDragStart={onDragStart} />
+          </div>
+          {/* Version History */}
             <div className="flex-grow overflow-y-auto p-4 flex flex-col min-h-0">
               <h3 className="text-sm font-medium mb-3 flex-shrink-0">Version History</h3>
                <div className="space-y-1 flex-grow overflow-y-auto">
-                {versionHistory.map((version) => (
-                 <VersionHistoryItem
-                   key={version.id}
-                   version={version}
-                   onRestore={handleRestoreVersion}
+              {versionHistory.map((version) => (
+                <VersionHistoryItem
+                  key={version.id}
+                  version={version}
+                  onRestore={handleRestoreVersion}
                    isActive={version.id === activeVersionId}
-                 />
-                ))}
-               </div>
+                />
+              ))}
             </div>
           </div>
+        </div>
         )}
       </div>
-
+      
       {/* Resizable Area (Main Content + Chat) */}
       <PanelGroup direction="horizontal" className="flex-grow"> {/* PanelGroup now takes remaining space */}
         {/* Main Content Panel (Flow Editor) */}
         <Panel defaultSize={75} minSize={40} className="flex-grow relative"> {/* Occupies flexible space */} 
           <div className="flex flex-col h-full" ref={reactFlowWrapper}> 
             {/* Toggle Sidebar Button (when closed) - Adjusted positioning */}
-            {!isSidebarOpen && (
-              <button 
-                onClick={() => setIsSidebarOpen(true)}
+        {!isSidebarOpen && (
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
                 className="absolute top-4 left-4 z-10 bg-card p-2 rounded-md shadow-md border"
                 title="Open Sidebar"
-              >
+          >
                  {/* Use a suitable icon if needed, e.g., PanelRightOpen */}
-                 →
-              </button>
-            )}
+            →
+          </button>
+        )}
             {/* Flow Editor takes full space */}
             <div className="flex-grow h-full">
                {(() => { 
@@ -578,7 +578,7 @@ const Index = () => {
                   },
                  }));
                  return (
-                   <TechStackFlow 
+          <TechStackFlow 
                      nodes={nodesWithHandlers} 
                      edges={edges}
                      onNodesChange={onNodesChange}
@@ -588,8 +588,8 @@ const Index = () => {
                      onDrop={onDrop}
                      onDragOver={onDragOver}
                      nodeTypes={nodeTypes}
-                     onSave={handleSave}
-                     onExport={handleExportGraph}
+            onSave={handleSave} 
+            onExport={handleExportGraph}
                      onReset={() => {
                        setNodes([]);
                        setEdges([]);
@@ -602,7 +602,7 @@ const Index = () => {
                  );
                })()}
             </div>
-          </div>
+        </div>
         </Panel>
         <PanelResizeHandle className="w-1 bg-border hover:bg-primary focus:outline-none focus:ring-1 focus:ring-primary focus:ring-offset-1 data-[resize-handle-state=drag]:bg-primary transition-colors" />
 

@@ -6,7 +6,7 @@ import textwrap
 import google.generativeai as genai 
 # --------------------------
 
-def generate_repo_builder_script_with_gemini(graph_data, user_context, gemini_model):
+def generate_repo_builder_script_with_gemini(graph_data, user_context, model):
     """
     Generates a Bash script string using the Gemini API to create a 
     basic project directory structure and placeholder files based on 
@@ -16,139 +16,105 @@ def generate_repo_builder_script_with_gemini(graph_data, user_context, gemini_mo
         graph_data (dict): A dictionary representing the tech stack, 
                            expected to have 'nodes' and 'edges' keys.
         user_context (str): Additional context or requirements from the user.
-        gemini_model (genai.GenerativeModel): Initialized Gemini model instance.
+        model (genai.GenerativeModel): Initialized Gemini model instance.
 
     Returns:
         str: A multi-line string containing the Bash script, or an error message 
              prefixed with '# Error:'.
     """
-    # --- Check for Gemini Model ---
-    if not gemini_model:
-        print("Error: Gemini model instance not provided to generate_repo_builder_script_with_gemini.")
-        return "# Error: Gemini model not available."
-    # ----------------------------
-    
-    if not graph_data or 'nodes' not in graph_data:
-        return "# Error: Invalid graph data provided for script generation."
+    if not model:
+        return "# Error: Gemini model not provided to repository builder."
 
+    # Prepare graph data representation for the prompt
     try:
-        # --- Prepare data for the prompt ---
-        graph_str = json.dumps(graph_data, indent=2)
-    except TypeError:
-        graph_str = str(graph_data) # Fallback if graph is not JSON serializable
-        print("Warning: Could not serialize graph data to JSON for Gemini prompt.")
+        # Simple representation: List node labels and types
+        nodes_info = []
+        for node in graph_data.get('nodes', []):
+            label = node.get('data', {}).get('label', 'Unknown Node')
+            node_type = node.get('data', {}).get('type', 'custom')
+            nodes_info.append(f"- {label} ({node_type})")
+        
+        # If no nodes, return a basic script
+        if not nodes_info:
+             return "#!/bin/bash\n# Warning: No nodes found in graph data.\nmkdir project_root\ncd project_root\necho '# Project Readme' > README.md\necho 'Initial structure created.'\n"
 
-    # --- Construct the Prompt for Gemini ---
-    prompt = textwrap.dedent(f"""
-    You are an expert system administrator and software developer tasked with generating a Bash script.
-    This script will scaffold a basic project structure on the user's local machine based on a provided tech stack graph and user requirements.
-
-    **Input Tech Stack (React Flow JSON format):**
-    ```json
-    {graph_str}
-    ```
-
-    **User Requirements/Context:**
-    "{user_context if user_context else 'No specific user requirements provided.'}"
-
-    **Your Task:**
-    Generate ONLY a valid Bash script (`#!/bin/bash`) that performs the following actions:
-    1.  Creates the necessary directory structure based on the components in the tech stack graph (e.g., `frontend/`, `backend/`, `frontend/src/`, `services/api_name/`). Use logical names derived from the node labels/types (e.g., 'React Frontend' node might lead to a `frontend/` directory).
-    2.  Creates essential placeholder files within those directories using the `touch` command (e.g., `frontend/package.json`, `backend/app.py`, `README.md`, `.gitignore`, `.env.example`). Determine appropriate files based on node labels/types (e.g., a 'python' backend needs `requirements.txt` and `app.py`, a 'react' frontend needs `package.json`, `src/index.js`, `public/index.html`).
-    3.  Uses `mkdir -p` to create directories recursively and avoid errors if they already exist.
-    4.  Uses **proper quoting** for ALL file and directory paths in the `mkdir` and `touch` commands to handle spaces or special characters safely. Use single quotes (e.g., `mkdir -p 'my frontend dir'` or `touch 'my backend dir/app.py'`). **This is critical.**
-    5.  Add basic, common content to `.gitignore` (e.g., node_modules, venv, .env*, !.env.example, __pycache__).
-    6.  Add a basic `README.md` structure including the User Requirements and a placeholder for setup instructions. Use `cat << EOF` for multi-line content.
-    7.  Include `set -e` at the beginning of the script to ensure it exits on error.
-    8.  Include a final `echo` message indicating success (e.g., "Project structure created successfully!").
-
-    **Output Format:**
-    Return ONLY the raw Bash script content, starting precisely with `#!/bin/bash` and ending with the final `echo` command. Do NOT include any explanations, introductions, markdown code fences (```bash ... ```), or any other text outside the script itself.
-
-    **Example of Correctly Quoted Output Snippet:**
-    ```bash
-    #!/bin/bash
-    set -e
-
-    # Create directories
-    mkdir -p 'frontend'
-    mkdir -p 'backend service' # Example with space
-    mkdir -p 'frontend/src'
-
-    # Create placeholder files
-    touch 'frontend/package.json'
-    touch 'backend service/main.py' # Example with space
-    touch 'README.md'
-    touch '.gitignore'
-
-    # Add basic content
-    cat << EOF > '.gitignore'
-node_modules/
-venv/
-.env*
-!.env.example
-__pycache__/
-EOF
-
-    cat << EOF > 'README.md'
-# Project Title (Generated)
-
-User Requirements: {user_context if user_context else 'N/A'}
-
-## Setup
-(Add setup instructions here)
-EOF
-
-    echo 'Project structure created successfully!'
-    ```
-    """)
-    # --- End Prompt ---
-
-    try:
-        print(f"Sending prompt to Gemini for Bash script generation (Context: {user_context[:50]}...)")
-        # --- Call Gemini API ---
-        response = gemini_model.generate_content(prompt)
-        # ----------------------
-
-        # --- Process Gemini Response ---
-        if not response.parts:
-            feedback = response.prompt_feedback
-            error_msg = f"# Error: Gemini response was blocked or empty for bash script generation.\n# Feedback: {feedback}"
-            print(f"Warning: {error_msg}")
-            return error_msg
-
-        bash_script = response.text.strip() # Remove leading/trailing whitespace
-
-        # Basic validation: Check if it starts with #!/bin/bash
-        if not bash_script.startswith("#!/bin/bash"):
-             # Sometimes the model might add ```bash prefix, try removing it
-             if bash_script.startswith("```bash"):
-                 bash_script = bash_script[len("```bash"):].strip()
-                 if bash_script.endswith("```"):
-                      bash_script = bash_script[:-len("```")].strip()
-                 
-             # Re-check after potential cleaning
-             if not bash_script.startswith("#!/bin/bash"):
-                 warning_msg = "# Warning: Gemini output did not start with #!/bin/bash. Returning raw output, review before execution."
-                 print(warning_msg)
-                 # Return the raw output anyway, maybe it's just missing the shebang or has extra text
-                 return f"{warning_msg}\n{bash_script}"
-        # ---------------------------
-
-        print("Received Bash script from Gemini.")
-        return bash_script # Return the cleaned script
+        nodes_str = "\\n".join(nodes_info)
 
     except Exception as e:
-        error_msg = f"# Error generating Bash script via Gemini: {e}"
-        print(f"Error during Gemini call for Bash script generation: {e}")
-        return error_msg
-    # --- End Gemini Logic ---
+        print(f"Error processing graph data for repo script prompt: {e}")
+        return f"# Error: Could not process graph data for script generation. Details: {e}"
+
+    # --- Enhanced Prompt for Bash Script Generation ---
+    prompt = textwrap.dedent(f"""
+    You are an expert system administrator creating a Bash script to initialize a project directory structure.
+    The project is based on the following components derived from a tech stack diagram:
+    {nodes_str}
+
+    The user provided this additional context: "{user_context}"
+
+    Generate ONLY a valid Bash script (`#!/bin/bash` shebang required) that performs the following actions:
+    1. Creates a root directory named `project_root`.
+    2. Changes into the `project_root` directory.
+    3. Creates a sensible directory structure based *only* on the listed components and common conventions for such technologies.
+        - **Crucially:** Use `mkdir -p` to create nested directories if needed (e.g., `mkdir -p src/components`, `mkdir -p backend/routes`). Ensure all parent directories exist.
+        - Consider standard folder names (e.g., `src`, `app`, `components`, `utils`, `config`, `tests`, `server`, `client`, `db`, `scripts`, `docs`).
+        - Group related components logically (e.g., put React components under `src/components`, Flask routes under `backend/routes`).
+    4. Creates placeholder files within the relevant directories (e.g., `README.md`, `.gitignore`, `requirements.txt`, `package.json`, `main.py`, `App.js`, `index.html`).
+        - Use `echo` or `touch` to create empty or minimal placeholder files. For example: `echo '# Project Title' > README.md` or `touch src/index.js`.
+    5. Add comments in the script explaining major sections (e.g., `# Create frontend structure`).
+    6. Conclude the script with an `echo` statement indicating completion, like `echo "Project structure created successfully."`.
+
+    **Constraints:**
+    - The script must be runnable on a standard Linux/macOS environment.
+    - Do NOT include any commands outside the scope of creating directories and placeholder files (no `git init`, `npm install`, `pip install`, etc.).
+    - Output ONLY the raw Bash script code, starting with `#!/bin/bash` and nothing else before or after it.
+    - Do not wrap the script in markdown code blocks.
+    """)
+    # --- End of Prompt ---
+
+    try:
+        print("Sending prompt to Gemini for repository script generation...")
+        response = model.generate_content(prompt)
+
+        # Handle potential safety blocks or empty responses
+        if not response.parts:
+            feedback = response.prompt_feedback
+            print(f"Warning: Gemini repo script response blocked or empty. Feedback: {feedback}")
+            return f"# Warning: AI response was blocked or empty. Feedback: {feedback}\n\n#!/bin/bash\nmkdir project_root\ncd project_root\necho '# Fallback Readme' > README.md\necho 'Warning: Script generation failed, created basic structure.'\n"
+
+        script_text = response.text
+        
+        # Basic validation: Check for shebang and remove potential markdown backticks
+        script_text = script_text.strip()
+        if script_text.startswith("```bash"):
+            script_text = script_text[7:]
+        if script_text.startswith("```"):
+             script_text = script_text[3:]
+        if script_text.endswith("```"):
+            script_text = script_text[:-3]
+        
+        script_text = script_text.strip() # Clean again after removing backticks
+
+        if not script_text.startswith("#!/bin/bash"):
+            print("Warning: Generated script missing shebang. Adding it.")
+            # Try to salvage if possible, otherwise return error
+            if len(script_text) > 10: # Arbitrary check for some content
+                 script_text = "#!/bin/bash\\n\\n" + script_text
+            else:
+                return "# Error: Generated script content is invalid or too short.\n"
+
+        print("Received valid-looking Bash script from Gemini.")
+        return script_text
+
+    except Exception as e:
+        print(f"Error during Gemini call for repo script generation: {e}")
+        return f"# Error: An exception occurred during script generation: {e}"
 
 
 # --- Example Usage (Requires configured Gemini model) ---
 if __name__ == '__main__':
     # NOTE: This example section is primarily for demonstrating the call structure.
-    # It requires a valid, configured 'gemini_model' object to run successfully.
+    # It requires a valid, configured 'model' object to run successfully.
     # You'll typically test this by calling the corresponding API endpoint in app.py.
     
     print("--- Running Example Usage (Requires Configured Gemini Model) ---")

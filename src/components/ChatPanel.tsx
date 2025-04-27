@@ -2,7 +2,7 @@ import React, { useState, useRef, MutableRefObject, useCallback, useEffect, Disp
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Send, User, Bot, Terminal, Loader, PanelRightClose, FileText, FileTerminal, Copy, Download } from 'lucide-react';
+import { Send, User, Bot, Terminal, Loader, PanelRightClose, FileText, FileTerminal, Copy, Download, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
 import { toast } from "@/components/ui/sonner";
@@ -46,6 +46,13 @@ const downloadFile = (content: string, filename: string, mimeType: string) => {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+};
+
+// Helper function to get display name for command mode
+const getCommandModeDisplayName = (mode: CommandMode) => {
+  if (mode === 'prompt') return 'Prompt Gen';
+  if (mode === 'repo') return 'Repo Gen';
+  return null;
 };
 
 const ChatPanel = ({ 
@@ -92,6 +99,13 @@ const ChatPanel = ({
     setCommandMode(mode);
     setInputValue('');
     setShowCommandPopup(false);
+    inputRef.current?.focus();
+  };
+
+  // Add function to cancel command mode
+  const handleCancelCommandMode = () => {
+    setCommandMode(null);
+    setInputValue('');
     inputRef.current?.focus();
   };
 
@@ -221,13 +235,12 @@ echo "Setting up repository..."
         selectCommand(filteredCommands[0].id as CommandMode);
       }
     } else if (e.key === 'Enter' && !e.shiftKey && !isGenerating) {
-      e.preventDefault();
+    e.preventDefault();
       handleSubmit();
     } else if (e.key === 'Escape') {
       setShowCommandPopup(false);
       if (commandMode) {
-        setCommandMode(null);
-        setInputValue('');
+        handleCancelCommandMode();
       }
     }
   };
@@ -309,8 +322,8 @@ echo "Setting up repository..."
                   msg.sender === 'ai' && !isThinking && !isBuilderPrompt && !isRepoScript && 'bg-muted',
                   msg.sender === 'ai' && isThinking && 'bg-muted/50 text-muted-foreground italic',
                   msg.sender === 'system' && 'bg-secondary text-secondary-foreground text-xs italic w-full text-center',
-                  isBuilderPrompt && 'bg-blue-900/30 hover:bg-blue-900/50 cursor-pointer border border-blue-700',
-                  isRepoScript && 'bg-teal-900/30 hover:bg-teal-900/50 cursor-pointer border border-teal-700'
+                  isBuilderPrompt && 'bg-blue-500/10 hover:bg-blue-500/20 cursor-pointer',
+                  isRepoScript && 'bg-teal-500/10 hover:bg-teal-500/20 cursor-pointer'
                 )}
               >
                 {isBuilderPrompt && <FileText className="h-4 w-4 mt-0.5 text-blue-400 flex-shrink-0" />}
@@ -324,6 +337,21 @@ echo "Setting up repository..."
                         {msg.content}
                       </ReactMarkdown>
                     </div>
+                  ) : (msg.sender === 'ai' && (isBuilderPrompt || isRepoScript)) ? (
+                    // --- Custom rendering for file gen cards ---
+                    <div className="flex flex-col">
+                      <span className={cn(
+                        "font-medium",
+                        isBuilderPrompt && "text-blue-500",
+                        isRepoScript && "text-teal-600"
+                      )}>
+                        {isBuilderPrompt ? "Prompt Gen" : "Repo Gen"}
+                      </span>
+                      <span className="text-xs text-muted-foreground/80 mt-0.5">
+                        Click to view/copy.
+                      </span>
+                    </div>
+                    // ----------------------------------------
                   ) : (
                     <span className="whitespace-pre-wrap">{msg.content}</span>
                   )
@@ -356,6 +384,21 @@ echo "Setting up repository..."
                 </Button>
               ))}
             </div>
+          </div>
+        )}
+
+        {commandMode && (
+          <div className="absolute bottom-full left-4 mb-1 flex items-center gap-2 bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-xs z-10">
+            <span>Mode: {getCommandModeDisplayName(commandMode)}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={handleCancelCommandMode}
+              title="Cancel command mode"
+            >
+              <X size={14} />
+            </Button>
           </div>
         )}
 
@@ -398,7 +441,7 @@ echo "Setting up repository..."
               className="w-full h-full resize-none font-mono text-xs border rounded-md p-2"
               placeholder="Generated prompt content..."
             />
-          </div>
+        </div>
           <DialogFooter className="mt-4 gap-2 sm:justify-end">
             <Button 
               variant="outline"
@@ -436,7 +479,7 @@ echo "Setting up repository..."
               className="w-full h-full resize-none font-mono text-xs border rounded-md p-2 bg-muted"
               placeholder="Generated bash script content..."
             />
-          </div>
+        </div>
           <DialogFooter className="mt-4 gap-2 sm:justify-end">
             <Button 
               variant="outline"

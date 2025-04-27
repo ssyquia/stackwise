@@ -10,6 +10,7 @@ import traceback # Import traceback for better error logging
 # --- Import generator functions ---
 # from prompt_generator import format_prompt_from_data # Keep if still used
 from llm_prompt_builder import generate_llm_builder_prompt # Import the new function
+from repo_builder import generate_repo_builder_script_with_gemini # Import repo builder function
 # ----------------------------------
 
 app = Flask(__name__)
@@ -456,6 +457,55 @@ def api_generate_builder_prompt():
         traceback.print_exc() # Log the full stack trace
         return jsonify({"error": "An internal server error occurred while generating the builder prompt."}), 500
 # --- End of new endpoint ---
+
+# --- Add the new endpoint for repo script generation --- 
+@app.route('/api/generate-repo-script', methods=['POST'])
+def api_generate_repo_script():
+    """Endpoint to generate a Bash script for creating repo structure."""
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+
+    data = request.get_json()
+    graph_data = data.get('graphData')
+    user_context = data.get('userContext', "") # Default to empty string if missing
+
+    if not graph_data:
+        return jsonify({"error": "Missing 'graphData' in request body"}), 400
+    # Basic validation
+    if not isinstance(graph_data.get('nodes'), list):
+        return jsonify({"error": "Invalid 'graphData' structure: 'nodes' must be a list."}), 400
+
+    # Ensure the Gemini model is available
+    if not gemini_model:
+        return jsonify({"error": "Gemini API model not configured on server."}), 503
+
+    try:
+        # --- Call the imported repo builder function --- 
+        bash_script = generate_repo_builder_script_with_gemini(
+            graph_data,
+            user_context,
+            gemini_model # Pass the initialized model
+        )
+        # --------------------------------------------
+
+        # Check if the generator returned an error string
+        if bash_script.startswith("# Error:") or bash_script.startswith("# Warning:"):
+            print(f"Repo script generation failed or has warnings: {bash_script}")
+            # Return a specific error code, e.g., 400 or 500 depending on error type
+            return jsonify({"error": bash_script}), 500 # Internal server error seems appropriate
+
+        # Return the generated script successfully
+        # We send it as plain text, but jsonify works for simple strings too
+        # For clarity, we could use Flask's Response object for text/plain
+        # from flask import Response
+        # return Response(bash_script, mimetype='text/plain')
+        return jsonify({"bashScript": bash_script}), 200 # Keep it JSON for consistency
+
+    except Exception as e:
+        print(f"Unexpected error in /api/generate-repo-script: {e}")
+        traceback.print_exc() # Log the full stack trace
+        return jsonify({"error": "An internal server error occurred while generating the repository script."}), 500
+# --- End of repo script endpoint ---
 
 @app.route('/')
 def health_check():

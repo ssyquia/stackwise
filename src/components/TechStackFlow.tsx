@@ -97,6 +97,7 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
           onDragOver={onDragOver}
           nodeTypes={nodeTypes}
           fitView
+          proOptions={{ hideAttribution: true }}
           defaultEdgeOptions={{
             type: 'default',
             animated: false,

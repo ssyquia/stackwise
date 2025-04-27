@@ -13,7 +13,7 @@ interface ChatMessage {
   sender: 'user' | 'ai' | 'system';
   content: string | object; 
   timestamp: string;
-  type?: 'builder-prompt';
+  type?: 'builder-prompt' | 'repo-script';
   fullContent?: string;
 }
 
@@ -65,6 +65,8 @@ const ChatPanel = ({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [modalPromptContent, setModalPromptContent] = useState('');
+  const [isRepoModalOpen, setIsRepoModalOpen] = useState(false);
+  const [modalRepoScriptContent, setModalRepoScriptContent] = useState('');
 
   // Update filtered commands based on input
   useEffect(() => {
@@ -108,12 +110,10 @@ echo "Setting up repository..."
   };
 
   const handleGenerateFile = async (mode: 'prompt' | 'repo', userPrompt: string) => {
-    const loadingToastId = toast.loading(`Generating ${mode === 'prompt' ? 'builder prompt (.txt)' : '.sh script'}...`);
+    const loadingToastId = toast.loading(`Generating ${mode === 'prompt' ? 'builder prompt' : 'repository script'}...`);
 
     try {
       let fileContent: string;
-      let filename: string;
-      let mimeType: string;
 
       if (mode === 'prompt') {
         // Call backend to generate the builder prompt
@@ -138,10 +138,10 @@ echo "Setting up repository..."
         const newMessage: ChatMessage = {
           id: `prompt-msg-${Date.now()}`,
           sender: 'ai',
-          content: `Generated Builder Prompt for: "${userPrompt.substring(0, 30)}...". Click to view/copy.`, // Short display content
+          content: `Generated Builder Prompt for: "${userPrompt.substring(0, 30)}...". Click to view/copy.`,
           timestamp: new Date().toISOString(),
-          type: 'builder-prompt', // Set the type
-          fullContent: fileContent, // Store the full prompt
+          type: 'builder-prompt',
+          fullContent: fileContent,
         };
         setChatMessages((prev) => [...prev, newMessage]);
         // --- End add message ---
@@ -153,17 +153,46 @@ echo "Setting up repository..."
         // --- End modal logic ---
 
       } else { // mode === 'repo'
-        // Use the existing simulation for repo generation for now
-        fileContent = await simulateFileGeneration(mode, userPrompt);
-        filename = 'generate_repo.sh';
-        mimeType = 'application/x-shellscript';
-        downloadFile(fileContent, filename, mimeType);
-        toast.success('File Generated', { id: loadingToastId, description: `${filename} download started.` });
+        // --- Call backend to generate the repository script --- 
+        const response = await fetch('http://localhost:5001/api/generate-repo-script', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            graphData: { nodes, edges }, // Send current graph state
+            userContext: userPrompt 
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        fileContent = result.bashScript; // Get the bash script from backend
+        
+        // --- Add message to chat history --- 
+        const newMessage: ChatMessage = {
+          id: `repo-script-msg-${Date.now()}`,
+          sender: 'ai',
+          content: `Generated Repository Script for: "${userPrompt.substring(0, 30)}...". Click to view/copy.`,
+          timestamp: new Date().toISOString(),
+          type: 'repo-script', // Set the type
+          fullContent: fileContent, // Store the full script
+        };
+        setChatMessages((prev) => [...prev, newMessage]);
+        // --- End add message ---
+
+        // --- Show modal instead of direct download ---
+        setModalRepoScriptContent(fileContent);
+        setIsRepoModalOpen(true);
+        toast.success('Repository Script Generated', { id: loadingToastId, description: `Script added to chat. Click to view.` });
+        // --- End modal logic ---
       }
 
     } catch (error) {
       console.error(`Error generating ${mode} file:`, error);
-      toast.error('File Generation Failed', { id: loadingToastId, description: error.message || 'Could not generate file.' });
+      toast.error('Generation Failed', { id: loadingToastId, description: error.message || 'Could not generate file.' }); // Generic failure message
     } finally {
       setCommandMode(null);
       setInputValue('');
@@ -220,11 +249,19 @@ echo "Setting up repository..."
     }
   };
 
-  // Function to open the modal from a chat message
+  // Function to open the prompt modal from a chat message
   const openPromptModal = (promptContent: string | undefined) => {
     if (promptContent) {
       setModalPromptContent(promptContent);
       setIsPromptModalOpen(true);
+    }
+  };
+
+  // Function to open the repo script modal from a chat message
+  const openRepoModal = (scriptContent: string | undefined) => {
+    if (scriptContent) {
+      setModalRepoScriptContent(scriptContent);
+      setIsRepoModalOpen(true);
     }
   };
 
@@ -249,6 +286,12 @@ echo "Setting up repository..."
         {messages.map((msg, index) => {
           const isThinking = msg.sender === 'ai' && msg.content === 'Thinking...';
           const isBuilderPrompt = msg.type === 'builder-prompt';
+          const isRepoScript = msg.type === 'repo-script';
+
+          const handleClick = () => {
+            if (isBuilderPrompt) openPromptModal(msg.fullContent);
+            if (isRepoScript) openRepoModal(msg.fullContent);
+          };
 
           return (
             <div 
@@ -259,21 +302,23 @@ echo "Setting up repository..."
               )}
             >
               <div 
-                onClick={isBuilderPrompt ? () => openPromptModal(msg.fullContent) : undefined}
+                onClick={isBuilderPrompt || isRepoScript ? handleClick : undefined}
                 className={cn(
                   "p-3 rounded-lg max-w-[80%] flex items-start gap-2",
                   msg.sender === 'user' && 'bg-primary text-primary-foreground',
-                  msg.sender === 'ai' && !isThinking && !isBuilderPrompt && 'bg-muted',
+                  msg.sender === 'ai' && !isThinking && !isBuilderPrompt && !isRepoScript && 'bg-muted',
                   msg.sender === 'ai' && isThinking && 'bg-muted/50 text-muted-foreground italic',
                   msg.sender === 'system' && 'bg-secondary text-secondary-foreground text-xs italic w-full text-center',
-                  isBuilderPrompt && 'bg-blue-900/30 hover:bg-blue-900/50 cursor-pointer border border-blue-700'
+                  isBuilderPrompt && 'bg-blue-900/30 hover:bg-blue-900/50 cursor-pointer border border-blue-700',
+                  isRepoScript && 'bg-teal-900/30 hover:bg-teal-900/50 cursor-pointer border border-teal-700'
                 )}
               >
                 {isBuilderPrompt && <FileText className="h-4 w-4 mt-0.5 text-blue-400 flex-shrink-0" />}
+                {isRepoScript && <FileTerminal className="h-4 w-4 mt-0.5 text-teal-400 flex-shrink-0" />}
                 {isThinking && <Loader className="h-4 w-4 animate-spin flex-shrink-0" />}
 
                 {typeof msg.content === 'string' ? (
-                  (msg.sender === 'ai' && !isThinking && !isBuilderPrompt) ? (
+                  (msg.sender === 'ai' && !isThinking && !isBuilderPrompt && !isRepoScript) ? (
                     <div className="prose prose-sm dark:prose-invert max-w-none">
                       <ReactMarkdown components={{ /* Customize rendering if needed */ }}>
                         {msg.content}
@@ -368,6 +413,44 @@ echo "Setting up repository..."
             >
                <Download className="h-4 w-4 mr-2" />
               Download .txt
+            </Button>
+             <DialogClose asChild>
+                <Button variant="ghost">Close</Button>
+             </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isRepoModalOpen} onOpenChange={setIsRepoModalOpen}>
+        <DialogContent className="max-w-2xl w-[80vw] h-[70vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Generated Repository Script</DialogTitle>
+            <DialogDescription>
+              Review the generated bash script. You can copy it or download it as a file.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-grow overflow-hidden p-0 m-0">
+            <Textarea 
+              value={modalRepoScriptContent}
+              readOnly
+              className="w-full h-full resize-none font-mono text-xs border rounded-md p-2 bg-muted"
+              placeholder="Generated bash script content..."
+            />
+          </div>
+          <DialogFooter className="mt-4 gap-2 sm:justify-end">
+            <Button 
+              variant="outline"
+              onClick={() => copyToClipboard(modalRepoScriptContent)}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy to Clipboard
+            </Button>
+            <Button 
+              variant="secondary" 
+              onClick={() => downloadFile(modalRepoScriptContent, 'generate_repo.sh', 'application/x-shellscript')}
+            >
+               <Download className="h-4 w-4 mr-2" />
+              Download .sh
             </Button>
              <DialogClose asChild>
                 <Button variant="ghost">Close</Button>

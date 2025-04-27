@@ -18,9 +18,16 @@ app = Flask(__name__)
 # More explicit CORS setup
 # --- CORS Setup ---
 
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8080")
+# Load frontend URL from environment variable
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8080")  # fallback for local dev
 
-CORS(app, origins=[frontend_url, "http://localhost:8080"], supports_credentials=True)
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [frontend_url],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 
 # --- Gemini API Setup ---
 def setup_gemini_api():

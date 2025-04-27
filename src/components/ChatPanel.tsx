@@ -8,9 +8,6 @@ import { cn } from '@/lib/utils';
 import { toast } from "@/components/ui/sonner";
 import { Node, Edge } from '@xyflow/react';
 
-const apiUrl = import.meta.env.VITE_API_URL;
-
-
 interface ChatMessage {
   id?: string;
   sender: 'user' | 'ai' | 'system';
@@ -134,7 +131,7 @@ echo "Setting up repository..."
 
       if (mode === 'prompt') {
         // Call backend to generate the builder prompt
-        const response = await fetch(`${apiUrl}/api/generate-builder-prompt`, {
+        const response = await fetch('http://localhost:5001/api/generate-builder-prompt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -171,7 +168,7 @@ echo "Setting up repository..."
 
       } else { // mode === 'repo'
         // --- Call backend to generate the repository script --- 
-        const response = await fetch(`${apiUrl}/api/generate-repo-script`, {
+        const response = await fetch('http://localhost:5001/api/generate-repo-script', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 

@@ -33,6 +33,8 @@ import { MessageCircle, PanelLeftClose, PanelRightClose, X } from 'lucide-react'
 import { calculateLayout } from '@/lib/graphLayout'; // Import the layout function
 
 const LOCAL_STORAGE_KEY = 'techStackGraphHistory';
+const apiUrl = import.meta.env.VITE_API_URL;
+
 
 // Type for version history items
 interface VersionHistoryEntry {
@@ -358,7 +360,7 @@ const Index = () => {
     try {
       // --- Call Generate/Modify Graph API --- 
       // TEMP: Force an error for testing - REVERTED
-      const response = await fetch('http://localhost:5001/api/generate-graph', { // Reverted back to original endpoint
+      const response = await fetch(`${apiUrl}/api/generate-graph`, { // Reverted back to original endpoint
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody), // Send the determined payload
@@ -415,7 +417,7 @@ const Index = () => {
       const explanationLoadingToastId = toast.loading("Generating Explanation...", { description: "Asking AI to explain the stack..." });
       let explanationError: Error | null = null;
       try {
-          const explainResponse = await fetch('http://localhost:5001/api/explain-graph', {
+          const explainResponse = await fetch(`${apiUrl}/api/explain-graph`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ 

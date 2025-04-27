@@ -131,7 +131,7 @@ echo "Setting up repository..."
 
       if (mode === 'prompt') {
         // Call backend to generate the builder prompt
-        const response = await fetch('http://localhost:5001/api/generate-builder-prompt', {
+        const response = await fetch('https://stackwise.onrender.com/api/generate-builder-prompt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -168,7 +168,7 @@ echo "Setting up repository..."
 
       } else { // mode === 'repo'
         // --- Call backend to generate the repository script --- 
-        const response = await fetch('http://localhost:5001/api/generate-repo-script', {
+        const response = await fetch('https://stackwise.onrender.com/api/generate-repo-script', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 

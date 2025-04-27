@@ -358,7 +358,7 @@ const Index = () => {
     try {
       // --- Call Generate/Modify Graph API --- 
       // TEMP: Force an error for testing - REVERTED
-      const response = await fetch('http://localhost:5001/api/generate-graph', { // Reverted back to original endpoint
+      const response = await fetch('https://stackwise.onrender.com/api/generate-graph', { // Reverted back to original endpoint
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody), // Send the determined payload
@@ -415,7 +415,7 @@ const Index = () => {
       const explanationLoadingToastId = toast.loading("Generating Explanation...", { description: "Asking AI to explain the stack..." });
       let explanationError: Error | null = null;
       try {
-          const explainResponse = await fetch('http://localhost:5001/api/explain-graph', {
+          const explainResponse = await fetch('https://stackwise.onrender.com/api/explain-graph', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ 

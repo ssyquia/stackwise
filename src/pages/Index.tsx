@@ -386,7 +386,8 @@ const Index = () => {
 
     try {
       // --- Call Generate/Modify Graph API --- 
-      const response = await fetch('http://localhost:5001/api/generate-graph', { // Use the same endpoint
+      // TEMP: Force an error for testing - REVERTED
+      const response = await fetch('http://localhost:5001/api/generate-graph', { // Reverted back to original endpoint
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody), // Send the determined payload
@@ -425,7 +426,10 @@ const Index = () => {
     } catch (error) {
       console.error("Error generating graph via backend:", error);
       graphError = error; 
-      toast.error("AI Generation/Modification Error", { description: error.message || "An unknown error occurred.", duration: 3000, });
+      toast.error("Graph Generation Failed", { 
+        description: "Please try modifying your prompt or rerunning the request.", 
+        duration: 5000, // Increased duration slightly
+      });
       setChatMessages(prev => prev.filter(m => m.id !== thinkingMessageId));
       setChatMessages(prev => [...prev, { sender: 'system', content: `Graph generation/modification failed: ${error.message}`, timestamp: new Date().toISOString() }]);
       generatedData = null; 

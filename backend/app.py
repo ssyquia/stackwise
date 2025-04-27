@@ -34,7 +34,7 @@ def setup_gemini_api():
         genai.configure(api_key=api_key)
 
         # Initialize the model exactly as in detail-generator.py
-        model_name = 'gemini-2.5-flash-preview-04-17'
+        model_name = 'gemini-1.5-flash-latest'
         model = genai.GenerativeModel(model_name)
         
         print(f"Using {model_name} model") 
@@ -90,20 +90,17 @@ def create_mock_tech_stack(description):
     ]
     return {"nodes": nodes, "edges": edges, "mocked": True} # Add flag to indicate mock data
 
-# --- Helper: Generate Graph from Description (with DETAILS included) ---
-def generate_tech_stack_graph(description):
-    """Uses Gemini to generate a tech stack graph JSON (React Flow format)
-       based on description, including DETAILED DESCRIPTIONS in the nodes.
-    """
+# --- Helper: Generate Graph from Scratch ---
+def generate_graph_from_scratch(description):
+    """Uses Gemini to generate a NEW tech stack graph JSON from a description."""
     if not gemini_model:
         print("Gemini model not initialized, using mock fallback.")
         return create_mock_tech_stack(description)
 
-    # --- UPDATED PROMPT --- 
-    # Asks for React Flow format AND detailed descriptions within data.details
+    # --- PROMPT FOR NEW GRAPH --- 
     prompt = textwrap.dedent(f"""
     You are a senior software architect designing a tech stack diagram for a web application.
-    Based on the project description below, generate a tech stack graph.
+    Based *only* on the project description below, generate a *complete* tech stack graph.
 
     Project description: {description}
 
@@ -135,24 +132,18 @@ def generate_tech_stack_graph(description):
     }}
 
     Instructions for Generation:
-    1. Include logical components for the stack: Frontend frameworks, Backend frameworks, Databases, important APIs/Services, Deployment targets.
-    2. Assign a relevant categorical `type` within the `data` object (frontend, backend, database, api, deployment, custom).
-    3. Position nodes logically using `position.x` and `position.y` (e.g., within 0-1000 canvas units).
-    4. Create edges between related components (frontend -> backend, backend -> database, etc.). Ensure `source` and `target` use the correct string `id`s of the nodes.
-    5. Use descriptive, unique STRING `id`s for both nodes and edges.
-    6. **IMPORTANT for `data.details`**: For EACH node, provide key technical specifications relevant to this project, focusing on versions, specific configurations, or sub-components. Avoid generic descriptions or environment variables. Examples:
-        - API Node (e.g., Gemini API): Model name ('gemini-1.5-pro-latest'), specific API endpoint used.
-        - Database Node (e.g., MongoDB): Version (e.g., '7.0'), specific collection name ('orders'), maybe a key configuration aspect (e.g., 'sharded cluster').
-        - Backend Node (e.g., Node.js): Runtime version ('v20.x'), key framework used ('Express 5').
-        - Frontend Node (e.g., React): Library version ('18.2'), specific architecture used ('Vite build', 'Next.js App Router').
-        - Deployment Node (e.g., AWS): Specific service and tier/type ('EC2 t3.medium', 'S3 Standard bucket').
-       Keep the details concise and focused on specifications. If a specific version or configuration isn't implied by the description, provide a typical or latest stable version as a sensible default.
-    7. Ensure the final output is ONLY the JSON object, with no surrounding text or explanations. Before returning the JSON, make sure to check that it is valid.
+    1. Include logical components: Frontend, Backend, Databases, APIs/Services, Deployment.
+    2. Assign relevant categorical `type`.
+    3. Position nodes logically (0-1000 units).
+    4. Create edges between related components.
+    5. Use descriptive, unique STRING `id`s.
+    6. **IMPORTANT for `data.details`**: Provide key technical specifications (versions, configurations, sub-components). Avoid generic descriptions. (Examples as before)
+    7. Ensure the final output is ONLY the valid JSON object.
     """)
-    # --- END UPDATED PROMPT ---
+    # --- END PROMPT --- 
 
     try:
-        print("Sending prompt to Gemini for graph generation (with details)...")
+        print(f"Sending prompt to Gemini for NEW graph generation: {description[:50]}...")
         response = gemini_model.generate_content(prompt)
 
         # Handle potential safety blocks or empty responses
@@ -188,16 +179,109 @@ def generate_tech_stack_graph(description):
              print("Generated JSON has incorrect structure, using mock fallback.")
              return create_mock_tech_stack(description)
 
-        # --- NO LONGER NEED CONVERSION --- 
-        # The prompt now asks directly for the React Flow format with details.
-        
-        print(f"Successfully generated and parsed graph data (with details) for: {description[:50]}...")
+        print(f"Successfully generated NEW graph for: {description[:50]}...")
         return tech_stack # Return the data directly
         
     except Exception as e:
         # Catch-all for other Gemini/network errors
         print(f"Error during Gemini call or processing: {e}, using mock fallback.")
         return create_mock_tech_stack(description) # Use mock for other errors
+
+# --- Helper: Modify or Replace Graph ---
+def modify_or_replace_graph(existing_graph_json, user_request):
+    """Uses Gemini to modify an existing graph based on a user request, 
+       OR generates a new graph if the request is fundamentally different."""
+    if not gemini_model:
+        print("Gemini model not initialized, using mock fallback.")
+        # Maybe return the existing graph instead of mock? Or mock?
+        return create_mock_tech_stack(user_request) # Or return existing_graph_json?
+
+    try:
+        existing_graph_str = json.dumps(existing_graph_json, indent=2)
+    except TypeError:
+        existing_graph_str = str(existing_graph_json) 
+        print("Warning: Could not serialize existing graph to JSON for modification prompt.")
+
+    # --- PROMPT FOR MODIFICATION/REPLACEMENT --- 
+    prompt = textwrap.dedent(f"""
+    You are a senior software architect updating a tech stack diagram.
+    You are given an existing tech stack graph and a user request.
+
+    Existing tech stack graph (React Flow JSON format):
+    ```json
+    {existing_graph_str}
+    ```
+
+    User request: "{user_request}"
+
+    Analyze the user request in the context of the *existing* graph.
+    
+    1. **Modification Task:** If the request asks for a specific change, addition, or removal related to the *current* tech stack (e.g., 'change the database to MongoDB', 'add Redis for caching', 'use Next.js instead of Create React App'), modify the *existing* graph JSON minimally to fulfill the request. Update node labels, types, details, positions, and edges as necessary. Ensure IDs remain consistent where possible, but generate new unique IDs for new nodes/edges.
+    
+    2. **Replacement Task:** If the user request describes a *completely different* application or a fundamental architectural shift unrelated to the current graph (e.g., the current graph is for a 'Twitter clone' and the request is 'create a mini reddit', or 'design an e-commerce backend'), then **ignore the existing graph** and generate a brand new, complete graph based *only* on the user request.
+
+    **Output Format:**
+    Return ONLY the resulting valid JSON object (either modified or brand new) with the exact structure compatible with React Flow:
+    {{
+      "nodes": [
+        {{
+          "id": "node_unique_string_id_1",  // Unique STRING ID (e.g., "node_react", "node_postgres")
+          "type": "techNode",              // Default node type for React Flow
+          "position": {{ "x": 100, "y": 200 }}, // REQUIRED x/y position
+          "data": {{                    // Data payload for the node
+            "label": "Component Name",   // The display name (e.g., "React", "PostgreSQL")
+            "type": "frontend|backend|database|api|deployment|custom", // Categorical type
+            "details": "Detailed description of this component..." // DETAILED DESCRIPTION HERE
+          }}
+        }}
+        // ... more nodes
+      ],
+      "edges": [
+        {{
+          "id": "edge_unique_string_id_1", // Unique STRING ID (e.g., "edge_react_to_api")
+          "source": "node_react_id",           // Source node STRING ID
+          "target": "node_api_id",             // Target node STRING ID
+          "type": "default",                 // Optional: React Flow edge type
+          "markerEnd": {{ "type": "arrowclosed" }} // Add arrowheads
+        }}
+        // ... more edges
+      ]
+    }}
+    Ensure `data.details` contains relevant technical specifications (versions, configs, etc.).
+    Ensure the final output is ONLY the valid JSON object.
+    """)
+    # --- END PROMPT --- 
+
+    try:
+        print(f"Sending prompt to Gemini for graph MODIFICATION/REPLACEMENT: {user_request[:50]}...")
+        response = gemini_model.generate_content(prompt)
+
+        # Handle potential safety blocks or empty responses
+        if not response.parts:
+             # ... (handle blocked/empty) ...
+             return create_mock_tech_stack(user_request) # Or return existing_graph_json?
+        response_text = response.text
+        # ... (JSON extraction logic) ...
+        tech_stack = None
+        try:
+            json_start = response_text.find('{')
+            json_end = response_text.rfind('}') + 1
+            if json_start != -1 and json_end != 0:
+                json_str = response_text[json_start:json_end]
+                tech_stack = json.loads(json_str)
+            else: raise ValueError("No JSON object found...")
+        except (json.JSONDecodeError, ValueError) as json_e:
+             # ... (handle JSON error) ...
+             return create_mock_tech_stack(user_request) # Or return existing_graph_json?
+        # ... (validation) ...
+        if not isinstance(tech_stack.get('nodes'), list) or not isinstance(tech_stack.get('edges'), list):
+              return create_mock_tech_stack(user_request) # Or return existing_graph_json?
+        print(f"Successfully generated MODIFIED/REPLACED graph for: {user_request[:50]}...")
+        return tech_stack
+        
+    except Exception as e:
+        print(f"Error during Gemini call for graph MODIFICATION/REPLACEMENT: {e}")
+        return create_mock_tech_stack(user_request) # Or return existing_graph_json?
 
 # --- Helper: Generate Explanation for Graph ---
 def generate_graph_explanation(graph_json, original_prompt):
@@ -255,40 +339,42 @@ def generate_graph_explanation(graph_json, original_prompt):
 
 @app.route('/api/generate-graph', methods=['POST'])
 def api_generate_graph():
-    """Endpoint to generate a tech stack graph from a text description.
-       The generated graph now includes details within each node's data.
+    """Endpoint to generate or modify a tech stack graph.
+       If 'existingGraph' is provided, modifies it based on 'prompt'.
+       Otherwise, generates a new graph from scratch based on 'prompt'.
     """
     if not request.is_json:
         return jsonify({"error": "Request must be JSON"}), 400
+    
     data = request.get_json()
-    description = data.get('description')
-    if not description:
-        return jsonify({"error": "Missing 'description' in request body"}), 400
+    prompt = data.get('prompt') # Renamed 'description' to 'prompt' for consistency
+    existing_graph = data.get('existingGraph') # Check for existing graph data
+
+    if not prompt:
+        return jsonify({"error": "Missing 'prompt' in request body"}), 400
 
     if not gemini_model:
          return jsonify({"error": "Gemini API not configured on server."}), 503
 
     try:
-        # Calls the updated function which now includes details
-        generated_data = generate_tech_stack_graph(description)
+        generated_data = None
+        if existing_graph and isinstance(existing_graph.get('nodes'), list) and len(existing_graph['nodes']) > 0:
+            # If existing graph is valid and not empty, try modifying it
+            print("Calling modify_or_replace_graph...")
+            generated_data = modify_or_replace_graph(existing_graph, prompt)
+        else:
+            # Otherwise, generate from scratch
+            print("Calling generate_graph_from_scratch...")
+            generated_data = generate_graph_from_scratch(prompt)
         
-        # Check if mock data was returned (e.g., due to API error)
-        # Frontend might want to know if the data is real or mocked
-        is_mocked = generated_data.pop('mocked', False) # Remove flag if present
+        # Check if mock data was returned 
+        is_mocked = generated_data.pop('mocked', False) 
         if is_mocked:
-            print("Returning mocked graph data due to generation failure.")
-            # Optionally add a flag back for the frontend, or just return mock data
-            # generated_data['is_mocked'] = True 
-        
-        # Check for errors returned within the data (handled internally now)
-        # if "error" in generated_data: 
-        #     print(f"Graph generation failed: {generated_data['error']}")
-        #     return jsonify({"error": f"Failed to generate graph via AI: {generated_data['error']}"}), 500
+            print("Returning mocked graph data due to generation/modification failure.")
+            # generated_data['is_mocked'] = True # Optionally add flag back
             
         return jsonify(generated_data), 200
-    except ConnectionError as e:
-         # This might still happen if setup_gemini_api failed initially
-         return jsonify({"error": str(e)}), 503
+        
     except Exception as e:
         print(f"Unexpected error in /api/generate-graph: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500

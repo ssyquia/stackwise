@@ -5,10 +5,17 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv # Keep import
 import google.generativeai as genai
+import traceback # Import traceback for better error logging
+
+# --- Import generator functions ---
+# from prompt_generator import format_prompt_from_data # Keep if still used
+from llm_prompt_builder import generate_llm_builder_prompt # Import the new function
+# ----------------------------------
 
 app = Flask(__name__)
 # Allow requests from frontend (adjust origin if your frontend runs elsewhere)
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:8080", "http://localhost:8081"]}}) # Add both ports just in case
+# More explicit CORS setup
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:8080", "http://localhost:8081"], "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type"]}})
 
 # --- Gemini API Setup ---
 def setup_gemini_api():
@@ -377,7 +384,8 @@ def api_generate_graph():
         
     except Exception as e:
         print(f"Unexpected error in /api/generate-graph: {e}")
-        return jsonify({"error": "An internal server error occurred."}), 500
+        traceback.print_exc() # Log the full stack trace
+        return jsonify({"error": "An internal server error occurred during graph generation."}), 500
 
 @app.route('/api/explain-graph', methods=['POST'])
 def api_explain_graph():
@@ -412,6 +420,42 @@ def api_explain_graph():
     except Exception as e:
         print(f"Unexpected error in /api/explain-graph: {e}")
         return jsonify({"error": "An internal server error occurred during explanation."}), 500
+
+# --- Add the new endpoint --- 
+@app.route('/api/generate-builder-prompt', methods=['POST'])
+def api_generate_builder_prompt():
+    """Endpoint to generate the detailed Markdown prompt for an LLM builder agent."""
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+
+    data = request.get_json()
+    graph_data = data.get('graphData')
+    user_context = data.get('userContext', "") # Default to empty string if missing
+
+    if not graph_data:
+        return jsonify({"error": "Missing 'graphData' in request body"}), 400
+    # Validate graph_data structure (basic check)
+    if not isinstance(graph_data.get('nodes'), list) or not isinstance(graph_data.get('edges'), list):
+         return jsonify({"error": "Invalid 'graphData' structure: 'nodes' and 'edges' must be lists."}), 400
+
+    try:
+        # --- Use the imported builder function --- 
+        markdown_prompt = generate_llm_builder_prompt(graph_data, user_context)
+        # ---------------------------------------
+
+        # Check if the generator itself returned an error string
+        if markdown_prompt.startswith("# Error:"):
+            print(f"LLM Builder prompt generation failed: {markdown_prompt}")
+            # Return a specific error code, e.g., 400 for bad input data
+            return jsonify({"error": markdown_prompt}), 400 # Or 500 if it's an internal generator issue
+
+        # Return the generated prompt successfully
+        return jsonify({"markdownPrompt": markdown_prompt}), 200
+    except Exception as e:
+        print(f"Unexpected error in /api/generate-builder-prompt: {e}")
+        traceback.print_exc() # Log the full stack trace
+        return jsonify({"error": "An internal server error occurred while generating the builder prompt."}), 500
+# --- End of new endpoint ---
 
 @app.route('/')
 def health_check():

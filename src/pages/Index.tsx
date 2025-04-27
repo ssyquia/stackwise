@@ -50,10 +50,12 @@ const nodeTypes = {
 
 // Define message structure
 interface ChatMessage {
-  id?: string; // Add optional ID for the thinking message
+  id?: string;
   sender: 'user' | 'ai' | 'system';
-  content: string | object; // Allow string or JSON object for graph data
+  content: string | object; // Main display content
   timestamp: string;
+  type?: 'builder-prompt'; // Optional type for special messages
+  fullContent?: string; // Optional field to store full prompt content
 }
 
 const Index = () => {
@@ -616,17 +618,18 @@ const Index = () => {
           onExpand={() => setIsChatPanelCollapsed(false)}
           className={`flex-shrink-0 bg-card flex flex-col border-l ${isChatPanelCollapsed ? '!min-w-0 !max-w-0 !w-0 border-none overflow-hidden' : ''}`}
         >
-           {/* ORIGINAL Chat Panel Code (Restored) */}
-          {!isChatPanelCollapsed && (
-            <ChatPanel 
-              messages={chatMessages} 
-              chatContainerRef={chatContainerRef}
-              onGenerateGraph={handleGenerateGraph} 
-              isGenerating={isGenerating} 
-              onCollapse={() => setIsChatPanelCollapsed(true)} 
-            />
-          )}
-          {/* END ORIGINAL Chat Panel Code */}
+           {!isChatPanelCollapsed && (
+             <ChatPanel 
+               messages={chatMessages} 
+               chatContainerRef={chatContainerRef}
+               onGenerateGraph={handleGenerateGraph} 
+               isGenerating={isGenerating} 
+               onCollapse={() => setIsChatPanelCollapsed(true)} 
+               nodes={nodes}
+               edges={edges}
+               setChatMessages={setChatMessages}
+             />
+           )}
         </Panel>
       </PanelGroup>
 

@@ -30,6 +30,7 @@ import {
   PanelResizeHandle,
 } from "react-resizable-panels";
 import { MessageCircle, PanelLeftClose, PanelRightClose, X } from 'lucide-react';
+import { calculateLayout } from '@/lib/graphLayout'; // Import the layout function
 
 const LOCAL_STORAGE_KEY = 'techStackGraphHistory';
 
@@ -59,6 +60,7 @@ const Index = () => {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+  const [initialLayoutApplied, setInitialLayoutApplied] = useState(false); // Track initial layout
 
   // Load initial state from localStorage or set default
   const loadInitialHistory = (): VersionHistoryEntry[] => {
@@ -104,10 +106,34 @@ const Index = () => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [isChatPanelCollapsed, setIsChatPanelCollapsed] = useState(false);
 
+  // Function to apply automatic layout
+  const handleAutoLayout = useCallback(() => {
+    if (nodes.length === 0) return; // Don't layout if no nodes
+    const layoutedNodes = calculateLayout(nodes, edges);
+    setNodes(layoutedNodes);
+    // Fit view after layout (optional, requires reactFlowInstance)
+    setTimeout(() => {
+      reactFlowInstance?.fitView({ padding: 0.2 });
+    }, 0); 
+  }, [nodes, edges, setNodes, reactFlowInstance]);
+
   // Effect to mark initial load as complete after first render
   useEffect(() => {
     setInitialLoadComplete(true);
   }, []);
+
+  // Apply initial layout once nodes/edges/instance are ready and layout hasn't been applied yet
+  useEffect(() => {
+    if (initialLoadComplete && reactFlowInstance && nodes.length > 0 && !initialLayoutApplied) {
+      handleAutoLayout();
+      setInitialLayoutApplied(true); // Mark layout as applied
+    }
+    // Reset flag if nodes/edges change significantly (e.g., after AI generation or version restore)
+    // This will trigger re-layout on next render
+    if (nodes.length === 0) {
+      setInitialLayoutApplied(false);
+    }
+  }, [nodes, edges, reactFlowInstance, initialLoadComplete, initialLayoutApplied, handleAutoLayout]);
 
   // Save history to localStorage whenever it changes (after initial load)
   useEffect(() => {
@@ -284,9 +310,9 @@ const Index = () => {
     const version = versionHistory.find(v => v.id === versionId);
     if (version) {
       setActiveVersionId(versionId);
-      // Set nodes/edges state directly using setters from hooks
       setNodes([...version.nodes]); // Use spread for new array reference
       setEdges([...version.edges]); // Use spread for new array reference
+      setInitialLayoutApplied(false); // Allow layout to re-run for the restored version
       toast.info("Version Restored", { description: `Restored: ${version.description}`, duration: 3000 });
     } else {
        toast.error("Error", { description: "Version not found.", duration: 3000 });
@@ -393,6 +419,7 @@ const Index = () => {
       setActiveVersionId(newVersionId);
       setNodes(newNodes);
       setEdges(newEdges);
+      setInitialLayoutApplied(false); // Reset layout flag to trigger auto-layout
       toast.success(`AI Graph ${graphAction}`, { description: "New graph loaded and saved.", duration: 3000 });
 
     } catch (error) {
@@ -446,7 +473,7 @@ const Index = () => {
       }
     }
 
-  }, [nodes, edges, versionHistory, setNodes, setEdges, setActiveVersionId, setVersionHistory]); // Added nodes/edges to dependencies
+  }, [nodes, edges, versionHistory, setNodes, setEdges, setActiveVersionId, setVersionHistory]); // Ensure all dependencies are correct
 
   const handleCreateRepository = async () => {
     try {
@@ -561,8 +588,10 @@ const Index = () => {
                        setNodes([]);
                        setEdges([]);
                        setActiveVersionId('initial');
+                       setInitialLayoutApplied(false); // Reset layout flag on manual reset
                        toast.info("Graph Reset", { description: "Canvas cleared.", duration: 3000 });
                      }}
+                     onAutoLayout={handleAutoLayout} // Pass the handler
                    />
                  );
                })()}

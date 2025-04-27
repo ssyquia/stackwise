@@ -18,6 +18,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
 import ResetGraphButton from './ResetGraphButton';
+import { Layout } from 'lucide-react';
 
 interface TechStackFlowProps {
   nodes: Node[];
@@ -32,6 +33,7 @@ interface TechStackFlowProps {
   onSave: () => void;
   onExport: () => void;
   onReset: () => void;
+  onAutoLayout: () => void;
 }
 
 const TechStackFlow: React.FC<TechStackFlowProps> = ({ 
@@ -46,7 +48,8 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
   nodeTypes,
   onSave, 
   onExport,
-  onReset
+  onReset,
+  onAutoLayout
 }) => {
   const handleSave = () => {
     onSave();
@@ -65,6 +68,15 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
             Save Graph
           </Button>
           <ResetGraphButton onReset={onReset} size="sm" />
+          <Button
+            onClick={onAutoLayout}
+            variant="outline"
+            size="sm"
+            title="Auto Layout"
+          >
+            <Layout className="h-4 w-4 mr-1" />
+            Layout
+          </Button>
           <Button
             onClick={onExport}
             size="sm"

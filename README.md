@@ -1,73 +1,47 @@
-# Welcome to your Lovable project
+# stackwise
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/38ea55a0-00b1-4a63-a137-ae866ce6ceb6
+**URL**: https://stackwise-omega.vercel.app/
 
-## How can I edit this code?
+## Inspiration
+We noticed that designing tech stacks for projects can often be overwhelming — whether you're a junior developer unsure where to start, or a senior engineer trying to optimize for production. We wanted to create a tool that would make this process faster, smarter, and more intuitive by combining natural language, graph-based architecture, and AI.
 
-There are several ways of editing your application.
+## What it does
+Stackwise lets users generate full tech stacks just by describing their project in plain English. It creates a graph visualization of the recommended stack, lets users manually edit technologies and connections, and even generates project scaffolds to kickstart development — all powered by an intelligence layer built on Google Gemini.
 
-**Use Lovable**
+## How we built it
+We built a frontend web app where users can chat, generate, and edit their tech stacks visually. Under the hood, we used Google Gemini to process natural language prompts, understand technology relationships, and adjust recommendations on the fly. We also created a system to generate bash scripts that scaffold repositories based on the custom tech stack graph. Our backend manages chat history, graph structure, and AI interactions to personalize every user's experience.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/38ea55a0-00b1-4a63-a137-ae866ce6ceb6) and start prompting.
+## Challenges we ran into
+- Designing a UI that felt intuitive for beginners while still being precise enough for advanced users.
+- Structuring the graph storage system so that Gemini could interpret and modify relationships between technologies accurately.
+- Building a smooth workflow from prompt to editable graph to repo scaffold.
+- Integrating AI in a way that felt natural and reliable, not just a gimmick.
+- Deploying the frontend to Vercel and the backend to Railway.
 
-Changes made via Lovable will be committed automatically to this repo.
+## Accomplishments that we're proud of
+- Building an end-to-end system where users can go from an idea to a deployable project structure in just a few minutes.
+- Successfully combining AI, graph editing, and scaffold generation into a seamless developer experience.
+- Creating a tool that feels useful not just at a hackathon, but also for real-world production planning.
 
-**Use your preferred IDE**
+## What we learned
+- How to effectively integrate AI into developer workflows without making it feel forced.
+- How to design flexible data structures that can bridge natural language input and complex technical outputs.
+- How to optimize the user experience for both newcomers and experienced engineers.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## What's next for stackwise
+- Allowing export to real GitHub repositories directly from the app.
+- Adding cost, speed, and reliability optimization toggles based on user goals.
+- Integrating more AI suggestions like security best practices or deployment recommendations.
+- Scaling Stackwise into a full developer platform for end-to-end project architecture and deployment.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
+## Built with
+- Next.js
+- React Flow
 - TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/38ea55a0-00b1-4a63-a137-ae866ce6ceb6) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+- Flask API
+- Google Gemini API
+- Flask (Python backend)
+- Railway (backend hosting)
+- Vercel (frontend hosting)

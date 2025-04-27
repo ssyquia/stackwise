@@ -342,8 +342,8 @@ echo "Setting up repository..."
                     <div className="flex flex-col">
                       <span className={cn(
                         "font-medium",
-                        isBuilderPrompt && "text-blue-500",
-                        isRepoScript && "text-teal-600"
+                        isBuilderPrompt && "text-blue-400",
+                        isRepoScript && "text-teal-400"
                       )}>
                         {isBuilderPrompt ? "Prompt Gen" : "Repo Gen"}
                       </span>

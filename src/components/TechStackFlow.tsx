@@ -19,6 +19,7 @@ import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
 import ResetGraphButton from './ResetGraphButton';
 import { Layout } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface TechStackFlowProps {
   nodes: Node[];
@@ -34,6 +35,7 @@ interface TechStackFlowProps {
   onExport: () => void;
   onReset: () => void;
   onAutoLayout: () => void;
+  isSidebarCollapsed: boolean;
 }
 
 const TechStackFlow: React.FC<TechStackFlowProps> = ({ 
@@ -49,7 +51,8 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
   onSave, 
   onExport,
   onReset,
-  onAutoLayout
+  onAutoLayout,
+  isSidebarCollapsed
 }) => {
   const handleSave = () => {
     onSave();
@@ -58,7 +61,7 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
   return (
     <div className="h-full w-full flex flex-col">
       <div className="flex justify-between items-center p-2 bg-background border-b">
-        <h2 className="text-lg font-medium">Tech Stack Editor</h2>
+        <h2 className="px-2 text-lg font-medium">systems.dev</h2>
         <div className="flex gap-2">
           <Button
             onClick={handleSave}
@@ -107,7 +110,7 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
             },
           }}
         >
-          <Controls />
+          <Controls className={cn(isSidebarCollapsed && "mb-16")} />
           <MiniMap position="top-right" />
           <Background 
             variant={BackgroundVariant.Dots}

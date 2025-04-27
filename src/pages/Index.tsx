@@ -28,6 +28,7 @@ import {
   Panel,
   PanelGroup,
   PanelResizeHandle,
+  ImperativePanelGroupHandle,
 } from "react-resizable-panels";
 import { MessageCircle, PanelLeftClose, PanelRightClose, X } from 'lucide-react';
 import { calculateLayout } from '@/lib/graphLayout'; // Import the layout function
@@ -63,6 +64,7 @@ const Index = () => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const [initialLayoutApplied, setInitialLayoutApplied] = useState(false); // Track initial layout
+  const panelGroupRef = useRef<ImperativePanelGroupHandle>(null);
 
   // Load initial state from localStorage or set default
   const loadInitialHistory = (): VersionHistoryEntry[] => {
@@ -508,6 +510,14 @@ const Index = () => {
     }
   };
 
+  // --- Add handler to imperatively expand chat --- 
+  const handleExpandChatPanel = () => {
+    setIsChatPanelCollapsed(false);
+    // Set layout: Flow panel takes remaining space, Chat panel takes 25%
+    panelGroupRef.current?.setLayout([75, 25]); 
+  };
+  // ---------------------------------------------
+
   return (
     <div className="flex h-screen w-full bg-background text-foreground">
       {/* Sidebar (Fixed Width) - Reverted from Panel */}
@@ -517,17 +527,17 @@ const Index = () => {
         <div className="flex flex-col h-full">
           {/* Sidebar Header */}
             <div className="p-4 border-b flex justify-between items-center flex-shrink-0">
-            <h2 className="font-medium">Tech Stack Builder</h2>
             <button 
               onClick={() => setIsSidebarOpen(false)}
               className="text-muted-foreground hover:text-foreground"
                 title="Close Sidebar"
+                style={{ marginTop: '2px', marginBottom: '2px'}}
             >
                 <PanelLeftClose size={16} /> {/* Use appropriate icon */} 
             </button>
           </div>
           {/* Node Palette */}
-            <div className="border-b flex-shrink-0 overflow-y-auto max-h-[40%]">
+            <div className="border-b flex-shrink-0 overflow-y-auto max-h-[60%]">
             <NodePalette onDragStart={onDragStart} />
           </div>
           {/* Version History */}
@@ -549,21 +559,14 @@ const Index = () => {
       </div>
       
       {/* Resizable Area (Main Content + Chat) */}
-      <PanelGroup direction="horizontal" className="flex-grow"> {/* PanelGroup now takes remaining space */}
+      <PanelGroup 
+        direction="horizontal" 
+        className="flex-grow" 
+        ref={panelGroupRef} 
+      > 
         {/* Main Content Panel (Flow Editor) */}
         <Panel defaultSize={75} minSize={40} className="flex-grow relative"> {/* Occupies flexible space */} 
           <div className="flex flex-col h-full" ref={reactFlowWrapper}> 
-            {/* Toggle Sidebar Button (when closed) - Adjusted positioning */}
-        {!isSidebarOpen && (
-          <button 
-            onClick={() => setIsSidebarOpen(true)}
-                className="absolute top-4 left-4 z-10 bg-card p-2 rounded-md shadow-md border"
-                title="Open Sidebar"
-          >
-                 {/* Use a suitable icon if needed, e.g., PanelRightOpen */}
-            →
-          </button>
-        )}
             {/* Flow Editor takes full space */}
             <div className="flex-grow h-full">
                {(() => { 
@@ -581,8 +584,8 @@ const Index = () => {
           <TechStackFlow 
                      nodes={nodesWithHandlers} 
                      edges={edges}
-                     onNodesChange={onNodesChange}
-                     onEdgesChange={onEdgesChange}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
                      onConnect={onConnect}
                      onInit={(instance: ReactFlowInstance) => setReactFlowInstance(instance)}
                      onDrop={onDrop}
@@ -598,13 +601,27 @@ const Index = () => {
                        toast.info("Graph Reset", { description: "Canvas cleared.", duration: 3000 });
                      }}
                      onAutoLayout={handleAutoLayout} // Pass the handler
+                     isSidebarCollapsed={!isSidebarOpen}
                    />
                  );
                })()}
             </div>
         </div>
         </Panel>
-        <PanelResizeHandle className="w-1 bg-border hover:bg-primary focus:outline-none focus:ring-1 focus:ring-primary focus:ring-offset-1 data-[resize-handle-state=drag]:bg-primary transition-colors" />
+        {/* --- Expand Sidebar Button (Bottom Left) --- */}
+        {!isSidebarOpen && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsSidebarOpen(true)}
+            className="absolute bottom-4 left-4 z-10 bg-background/80 hover:bg-background border shadow-md h-8 w-8"
+            title="Open Sidebar"
+          >
+            <PanelRightClose size={16} />
+          </Button>
+        )}
+        {/* --- End Expand Sidebar Button --- */}
+        <PanelResizeHandle className="w-1 bg-border/50 hover:bg-border transition-colors" />
 
         {/* Chat Panel (Right, Resizable & Collapsible) */}
         <Panel 
@@ -633,10 +650,10 @@ const Index = () => {
         </Panel>
       </PanelGroup>
 
-      {/* Floating Expand Chat Button ... (remains the same) ... */}
+      {/* Floating Expand Chat Button */}
       {isChatPanelCollapsed && (
         <button
-          onClick={() => setIsChatPanelCollapsed(false)}
+          onClick={handleExpandChatPanel}
           className="fixed bottom-4 right-4 z-50 bg-primary text-primary-foreground rounded-full p-3 shadow-lg hover:bg-primary/90 transition-all"
           title="Open Chat"
         >
@@ -644,7 +661,7 @@ const Index = () => {
         </button>
       )}
 
-      {/* Export Dialog ... (remains the same) ... */}
+      {/* Export Dialog */}
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
         <DialogContent className="max-w-lg w-[70vw] h-[60vh] flex flex-col p-4">
           <DialogHeader className="mb-2">

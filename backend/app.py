@@ -16,7 +16,7 @@ from repo_builder import generate_repo_builder_script_with_gemini # Import repo 
 app = Flask(__name__)
 # Allow requests from frontend (adjust origin if your frontend runs elsewhere)
 # More explicit CORS setup
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:8080", "http://localhost:8081"], "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type"]}})
+CORS(app, resources={r"/api/*": {"origins": ["stackwise-git-backend-sanchos-projects-974290eb.vercel.app"], "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type"]}})
 
 # --- Gemini API Setup ---
 def setup_gemini_api():

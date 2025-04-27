@@ -134,9 +134,10 @@ const TechNode = ({ data, id }: TechNodeProps) => {
           </div>
         </div>
         
-        {/* Handles remain unchanged */}
+        {/* --- Remove gray background from Handles --- */}
         <Handle type="target" position={Position.Top} className="w-2 h-2" />
         <Handle type="source" position={Position.Bottom} className="w-2 h-2" />
+        {/* --------------------------------------- */}
       </div>
 
       {/* Details Dialog */}

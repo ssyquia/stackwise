@@ -18,7 +18,6 @@ import NodePalette from '@/components/sidebar/NodePalette';
 import VersionHistoryItem from '@/components/sidebar/VersionHistoryItem';
 import TechStackFlow from '@/components/TechStackFlow';
 import ChatPanel from '@/components/ChatPanel';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { toast } from "@/components/ui/sonner"
@@ -103,8 +102,6 @@ const Index = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialActiveVersion.edges);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [exportDialogOpen, setExportDialogOpen] = useState(false);
-  const [exportJson, setExportJson] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -209,8 +206,7 @@ const Index = () => {
         ...params,
         type: 'default', 
         animated: false,
-        style: { stroke: '#333' },
-        markerEnd: { type: MarkerType.Arrow },
+        style: { stroke: '#000000', strokeWidth: 1.5 },
       };
       setEdges((eds) => addEdge(newEdge, eds));
     },
@@ -247,13 +243,13 @@ const Index = () => {
         id: `node_${Date.now()}`,
         type: 'techNode', // Use the correct node type
         position: position, // Assign the calculated position object correctly
-        data: {
+          data: { 
           label: label || type,
           type: type, 
           details: '', 
           // Pass handlers directly (ensure these exist)
-          onLabelChange: handleNodeLabelChange,
-          onDelete: handleNodeDelete,
+            onLabelChange: handleNodeLabelChange,
+            onDelete: handleNodeDelete,
           onDetailsChange: handleNodeDetailsChange,
         },
       };
@@ -321,35 +317,6 @@ const Index = () => {
     } else {
        toast.error("Error", { description: "Version not found.", duration: 3000 });
     }
-  };
-
-  // Handle exporting the graph
-  const handleExportGraph = () => {
-    const formattedNodes = nodes.map(node => ({ // Use nodes state
-      id: node.id,
-      name: node.data.label,
-      details: node.data.details || '',
-      x_pos: node.position.x,
-      y_pos: node.position.y,
-    }));
-
-    const formattedEdges = edges.map(edge => ({ // Use edges state
-      source_ID: edge.source,
-      target_ID: edge.target,
-    }));
-
-    const graphData = {
-      nodes: formattedNodes,
-      edges: formattedEdges,
-      metadata: {
-        name: `Tech Stack Graph - ${new Date().toISOString()}`,
-        created: new Date().toISOString(),
-        version: activeVersionId // Use activeVersionId state
-      }
-    };
-
-    setExportJson(JSON.stringify(graphData, null, 2));
-    setExportDialogOpen(true);
   };
 
   // Effect to scroll chat down on new message
@@ -483,33 +450,6 @@ const Index = () => {
 
   }, [nodes, edges, versionHistory, setNodes, setEdges, setActiveVersionId, setVersionHistory]); // Ensure all dependencies are correct
 
-  const handleCreateRepository = async () => {
-    try {
-      const response = await fetch('/api/github/create-repository', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: exportJson,
-      });
-
-      if (response.ok) {
-        toast.success("Success", {
-          description: "Repository created successfully!",
-          duration: 3000,
-        });
-        setExportDialogOpen(false);
-      } else {
-        throw new Error('Failed to create repository');
-      }
-    } catch (error) {
-      toast.error("Error", {
-        description: "Failed to create repository. Please try again.",
-        duration: 3000,
-      });
-    }
-  };
-
   // --- Add handler to imperatively expand chat --- 
   const handleExpandChatPanel = () => {
     setIsChatPanelCollapsed(false);
@@ -537,7 +477,7 @@ const Index = () => {
             </button>
           </div>
           {/* Node Palette */}
-            <div className="border-b flex-shrink-0 overflow-y-auto max-h-[60%]">
+            <div className="border-b flex-shrink-0 overflow-y-auto max-h-[50%]">
             <NodePalette onDragStart={onDragStart} />
           </div>
           {/* Version History */}
@@ -592,7 +532,6 @@ const Index = () => {
                      onDragOver={onDragOver}
                      nodeTypes={nodeTypes}
             onSave={handleSave} 
-            onExport={handleExportGraph}
                      onReset={() => {
                        setNodes([]);
                        setEdges([]);
@@ -660,34 +599,6 @@ const Index = () => {
           <MessageCircle size={24} />
         </button>
       )}
-
-      {/* Export Dialog */}
-      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-        <DialogContent className="max-w-lg w-[70vw] h-[60vh] flex flex-col p-4">
-          <DialogHeader className="mb-2">
-            <DialogTitle>Export to GitHub</DialogTitle>
-            <DialogDescription>
-              Review your tech stack graph data before creating a GitHub repository.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-            <Textarea 
-              className="flex-1 font-mono text-xs resize-none mb-4 border border-input rounded-md p-2"
-              value={exportJson}
-              readOnly
-            />
-            <div className="flex justify-end gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => setExportDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleCreateRepository}>Create Repository</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

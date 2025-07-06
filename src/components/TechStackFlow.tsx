@@ -18,7 +18,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
 import ResetGraphButton from './ResetGraphButton';
-import { Layout } from 'lucide-react';
+import { Layout, LogIn, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TechStackFlowProps {
@@ -35,6 +35,9 @@ interface TechStackFlowProps {
   onReset: () => void;
   onAutoLayout: () => void;
   isSidebarCollapsed: boolean;
+  user?: any;
+  onLogin?: () => void;
+  onLogout?: () => void;
 }
 
 const TechStackFlow: React.FC<TechStackFlowProps> = ({ 
@@ -50,7 +53,10 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
   onSave, 
   onReset,
   onAutoLayout,
-  isSidebarCollapsed
+  isSidebarCollapsed,
+  user,
+  onLogin,
+  onLogout
 }) => {
   const handleSave = () => {
     onSave();
@@ -85,6 +91,27 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
             <Layout className="h-4 w-4 mr-1" />
             Layout
           </Button>
+          {user ? (
+            <Button
+              onClick={onLogout}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1"
+            >
+              <LogOut size={14} />
+              Logout
+            </Button>
+          ) : (
+            <Button
+              onClick={onLogin}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1"
+            >
+              <LogIn size={14} />
+              Login
+            </Button>
+          )}
         </div>
       </div>
       <div className="flex-grow">

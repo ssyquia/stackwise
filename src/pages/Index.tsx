@@ -29,8 +29,10 @@ import {
   PanelResizeHandle,
   ImperativePanelGroupHandle,
 } from "react-resizable-panels";
-import { MessageCircle, PanelLeftClose, PanelRightClose, X } from 'lucide-react';
+import { MessageCircle, PanelLeftClose, PanelRightClose, X, LogIn, LogOut } from 'lucide-react';
 import { calculateLayout } from '@/lib/graphLayout'; // Import the layout function
+import { useAuth } from '@/lib/auth-context';
+import { useNavigate } from 'react-router-dom';
 
 const LOCAL_STORAGE_KEY = 'techStackGraphHistory';
 const apiUrl = import.meta.env.VITE_API_URL;
@@ -61,6 +63,8 @@ interface ChatMessage {
 }
 
 const Index = () => {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
@@ -462,7 +466,7 @@ const Index = () => {
 
   return (
     <div className="flex h-screen w-full bg-background text-foreground">
-      {/* Sidebar (Fixed Width) - Reverted from Panel */}
+        {/* Sidebar (Fixed Width) - Reverted from Panel */}
       <div className={`bg-card border-r transition-all flex-shrink-0 ${isSidebarOpen ? 'w-72' : 'w-0 overflow-hidden border-none'}`}>
         {/* Conditionally render sidebar content only if not collapsed */} 
         {isSidebarOpen && (
@@ -543,6 +547,9 @@ const Index = () => {
                      }}
                      onAutoLayout={handleAutoLayout} // Pass the handler
                      isSidebarCollapsed={!isSidebarOpen}
+                     user={user}
+                     onLogin={() => navigate('/login')}
+                     onLogout={signOut}
                    />
                  );
                })()}

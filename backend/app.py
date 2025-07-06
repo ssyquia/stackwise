@@ -6,6 +6,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv # Keep import
 import google.generativeai as genai
 import traceback # Import traceback for better error logging
+from supabase_client import supabase
 
 # --- Import generator functions ---
 # from prompt_generator import format_prompt_from_data # Keep if still used
@@ -16,15 +17,78 @@ from repo_builder import generate_repo_builder_script_with_gemini # Import repo 
 app = Flask(__name__)
 # Allow requests from frontend (adjust origin if your frontend runs elsewhere)
 # More explicit CORS setup
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8080").rstrip('/')
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip('/')
 
 CORS(
     app,
-    resources={ r"/api/*": { "origins": [frontend_url, "http://localhost:8080"] } },
+    resources={ r"/api/*": { "origins": [frontend_url, "http://localhost:5173"] } },
     supports_credentials=True,
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Authorization"],
     methods=["GET", "POST", "OPTIONS"]
 )
+
+# --- Authentication Endpoints ---
+@app.route('/api/auth/signup', methods=['POST'])
+def signup():
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+    
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    
+    if not email or not password:
+        return jsonify({"error": "Email and password are required"}), 400
+    
+    try:
+        auth_response = supabase.auth.sign_up({
+            "email": email,
+            "password": password
+        })
+        return jsonify(auth_response.dict()), 200
+    except Exception as e:
+        print(f"Signup error: {str(e)}")
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+    
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    
+    if not email or not password:
+        return jsonify({"error": "Email and password are required"}), 400
+    
+    try:
+        auth_response = supabase.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+        })
+        return jsonify(auth_response.dict()), 200
+    except Exception as e:
+        print(f"Login error: {str(e)}")
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    try:
+        supabase.auth.sign_out()
+        return jsonify({"message": "Logged out successfully"}), 200
+    except Exception as e:
+        print(f"Logout error: {str(e)}")
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/api/auth/user', methods=['GET'])
+def get_user():
+    try:
+        user = supabase.auth.get_user()
+        return jsonify(user.dict()), 200
+    except Exception as e:
+        print(f"Get user error: {str(e)}")
+        return jsonify({"error": str(e)}), 401
 
 # --- Gemini API Setup ---
 def setup_gemini_api():

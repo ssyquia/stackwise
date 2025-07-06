@@ -18,6 +18,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
 import ResetGraphButton from './ResetGraphButton';
+import StorageStatus from './StorageStatus';
 import { Layout, LogIn, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -65,14 +66,17 @@ const TechStackFlow: React.FC<TechStackFlowProps> = ({
   return (
     <div className="h-full w-full flex flex-col">
       <div className="flex justify-between items-center p-2 bg-background border-b">
-        <h2 className="px-2 text-lg font-medium flex items-center">
-          <img 
-            src="/stackwiseLogo.png"
-            alt="Stackwise logo" 
-            className="h-5 w-5 mr-2"
-          /> 
-          <span>stackwise</span>
-        </h2>
+        <div className="flex items-center gap-4">
+          <h2 className="px-2 text-lg font-medium flex items-center">
+            <img 
+              src="/stackwiseLogo.png"
+              alt="Stackwise logo" 
+              className="h-5 w-5 mr-2"
+            /> 
+            <span>stackwise</span>
+          </h2>
+          <StorageStatus />
+        </div>
         <div className="flex gap-2">
           <Button
             onClick={handleSave}

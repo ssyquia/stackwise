@@ -33,19 +33,9 @@ import { MessageCircle, PanelLeftClose, PanelRightClose, X, LogIn, LogOut } from
 import { calculateLayout } from '@/lib/graphLayout'; // Import the layout function
 import { useAuth } from '@/lib/auth-context';
 import { useNavigate } from 'react-router-dom';
+import { graphStorage, VersionHistoryEntry } from '@/lib/graphStorage';
 
-const LOCAL_STORAGE_KEY = 'techStackGraphHistory';
 const apiUrl = import.meta.env.VITE_API_URL;
-
-
-// Type for version history items
-interface VersionHistoryEntry {
-  id: string;
-  timestamp: string;
-  description: string;
-  nodes: Node[];
-  edges: Edge[];
-}
 
 // Define node types used in the flow
 const nodeTypes = {
@@ -71,47 +61,42 @@ const Index = () => {
   const [initialLayoutApplied, setInitialLayoutApplied] = useState(false); // Track initial layout
   const panelGroupRef = useRef<ImperativePanelGroupHandle>(null);
 
-  // Load initial state from localStorage or set default
-  const loadInitialHistory = (): VersionHistoryEntry[] => {
-    if (typeof window !== 'undefined') { // Ensure localStorage is available
-      const savedHistory = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (savedHistory) {
-        try {
-          const parsedHistory = JSON.parse(savedHistory);
-          // Basic validation to ensure it's an array
-          if (Array.isArray(parsedHistory)) {
-            return parsedHistory;
-          }
-        } catch (e) {
-          console.error("Failed to parse version history from localStorage", e);
-        }
-      }
-    }
-    // Default initial version if nothing in localStorage or parsing failed
-    return [
-    {
-      id: 'initial',
-      timestamp: new Date().toLocaleString(),
-      description: 'Initial Version',
-      nodes: [],
-      edges: [],
-    }
-    ];
-  };
-
-  const [versionHistory, setVersionHistory] = useState<VersionHistoryEntry[]>(loadInitialHistory);
-  const [activeVersionId, setActiveVersionId] = useState<string>(() => versionHistory[versionHistory.length - 1]?.id || 'initial');
+  const [versionHistory, setVersionHistory] = useState<VersionHistoryEntry[]>([]);
+  const [activeVersionId, setActiveVersionId] = useState<string>('initial');
+  const [isLoading, setIsLoading] = useState(true);
 
   // Initialize nodes/edges state based on the active version
   const initialActiveVersion = versionHistory.find(v => v.id === activeVersionId) || versionHistory[0];
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialActiveVersion.nodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialActiveVersion.edges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialActiveVersion?.nodes || []);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialActiveVersion?.edges || []);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [isChatPanelCollapsed, setIsChatPanelCollapsed] = useState(false);
+
+  // Load graphs on mount and when user changes
+  useEffect(() => {
+    (async () => {
+      setIsLoading(true); // Set loading to true before starting
+      const history = await graphStorage.loadGraphs();
+      console.log('Loaded graph history:', history);
+      setVersionHistory(history);
+      setActiveVersionId(history[history.length - 1]?.id || 'initial');
+      setIsLoading(false); // Set loading to false after completion
+      setInitialLoadComplete(true); // Indicate initial load is complete
+    })();
+  }, [user]);
+
+  // Update nodes/edges when active version changes
+  useEffect(() => {
+    const activeVersion = versionHistory.find(v => v.id === activeVersionId);
+    if (activeVersion) {
+      setNodes(activeVersion.nodes);
+      setEdges(activeVersion.edges);
+    }
+  }, [activeVersionId, versionHistory, setNodes, setEdges]);
 
   // Function to apply automatic layout
   const handleAutoLayout = useCallback(() => {
@@ -123,11 +108,6 @@ const Index = () => {
       reactFlowInstance?.fitView({ padding: 0.2 });
     }, 0); 
   }, [nodes, edges, setNodes, reactFlowInstance]);
-
-  // Effect to mark initial load as complete after first render
-  useEffect(() => {
-    setInitialLoadComplete(true);
-  }, []);
 
   // Apply initial layout once nodes/edges/instance are ready and layout hasn't been applied yet
   useEffect(() => {
@@ -142,48 +122,19 @@ const Index = () => {
     }
   }, [nodes, edges, reactFlowInstance, initialLoadComplete, initialLayoutApplied, handleAutoLayout]);
 
-  // Save history to localStorage whenever it changes (after initial load)
+  // Save current version when it changes
   useEffect(() => {
-    if (initialLoadComplete && typeof window !== 'undefined') {
-      // Find the currently active version in history and update its nodes/edges
-      const updatedHistory = versionHistory.map(version => {
-        if (version.id === activeVersionId) {
-          // Ensure we're creating new objects/arrays to avoid mutation issues
-          return { ...version, nodes: [...nodes], edges: [...edges] }; 
+    if (initialLoadComplete && activeVersionId !== 'initial') {
+      const saveCurrentVersion = async () => {
+        try {
+          await graphStorage.updateGraph(activeVersionId, { nodes, edges });
+        } catch (error) {
+          console.error('Failed to save current version:', error);
         }
-        return version;
-      });
-
-      // Prepare the stringified history once
-      const historyJson = JSON.stringify(updatedHistory);
-      const currentStorageJson = localStorage.getItem(LOCAL_STORAGE_KEY);
-
-      // Check if the state representation differs from the stored one
-      if (historyJson !== currentStorageJson) {
-         try {
-             localStorage.setItem(LOCAL_STORAGE_KEY, historyJson);
-             // If the state *itself* needed updating (rare case, defensive)
-             if(JSON.stringify(updatedHistory) !== JSON.stringify(versionHistory)) {
-                 setVersionHistory(updatedHistory); 
-             }
-         } catch (storageError) {
-             console.warn("LocalStorage Warning (History Sync Effect): Failed to save graph history. Data might be lost on refresh.", storageError);
-             // Optionally show a less intrusive warning, or none at all
-             // toast({ title: "Storage Warning", description: "Could not sync history to storage.", variant: "outline", duration: 3000 });
-             // Importantly, DO NOT THROW - allow UI updates to proceed
-             
-             // Still update the state if it changed, even if storage failed
-             if(JSON.stringify(updatedHistory) !== JSON.stringify(versionHistory)) {
-                 setVersionHistory(updatedHistory); 
-             }
-         }
-      }
+      };
+      saveCurrentVersion();
     }
-  // NOTE: Reduced dependencies to avoid potentially excessive writes.
-  // Re-evaluate if active version state *must* be saved on every node/edge change.
-  // For now, focus on saving when the version *itself* changes or history is explicitly added.
-  // }, [nodes, edges, activeVersionId, versionHistory, initialLoadComplete]); 
-  }, [activeVersionId, versionHistory, initialLoadComplete]); // Try saving primarily when active version changes or history array changes
+  }, [nodes, edges, activeVersionId, initialLoadComplete]);
 
   // Get current active version data
   const getCurrentVersionData = (): VersionHistoryEntry => {
@@ -295,21 +246,12 @@ const Index = () => {
   }, [setNodes]);
 
   // Versioning Handlers
-  const handleSave = () => { // No longer needs nodes/edges passed in
-    const newVersion: VersionHistoryEntry = {
-      id: `version_${Date.now()}`,
-      timestamp: new Date().toLocaleString(),
-      description: `Version ${versionHistory.length + 1}`, // Use current length before adding
-      // Clone current nodes/edges from state
-      nodes: nodes.map(n => ({ ...n, data: { ...n.data } })), // Deep copy nodes/data
-      edges: edges.map(e => ({ ...e })), // Shallow copy edges (usually fine)
-    };
-
-    const updatedHistory = [...versionHistory, newVersion];
-    setVersionHistory(updatedHistory);
-    setActiveVersionId(newVersion.id); // Activate the new version
-    // No need to setCurrentNodes/Edges here, state already reflects current graph
-    toast.success("Graph Saved", { description: `Version ${updatedHistory.length} saved.`, duration: 3000 });
+  const handleSave = async () => {
+    await graphStorage.saveGraph({ nodes, edges }, `Version ${versionHistory.length + 1}`);
+    const history = await graphStorage.loadGraphs();
+    setVersionHistory(history);
+    setActiveVersionId(history[history.length - 1]?.id || 'initial');
+    toast.success('Graph saved!');
   };
 
   const handleRestoreVersion = (versionId: string) => {
@@ -382,23 +324,26 @@ const Index = () => {
       }
       // --- Update Graph and Version History --- 
       const graphAction = nodes.length > 0 ? "Modified" : "Generated";
-      const newVersionId = `ai_version_${Date.now()}`;
       const newNodes = Array.isArray(generatedData.nodes) ? [...generatedData.nodes] : [];
       const newEdges = Array.isArray(generatedData.edges) ? [...generatedData.edges] : [];
-    const newVersion: VersionHistoryEntry = {
-        id: newVersionId,
-        timestamp: new Date().toISOString(),
-        description: `AI ${graphAction}: ${prompt.substring(0, 30)}...`,
-        nodes: newNodes, 
-        edges: newEdges, 
-      };
-      // ... (localStorage saving logic) ...
-      setVersionHistory((prevHistory) => [...prevHistory, newVersion]);
-      setActiveVersionId(newVersionId);
+      
+      // Save the AI-generated graph
+      const graphId = await graphStorage.saveGraph(
+        { nodes: newNodes, edges: newEdges },
+        `AI ${graphAction}: ${prompt.substring(0, 30)}...`
+      );
+      
+      // Reload graphs to get the updated list
+      const updatedHistory = await graphStorage.loadGraphs();
+      setVersionHistory(updatedHistory);
+      setActiveVersionId(graphId);
       setNodes(newNodes);
       setEdges(newEdges);
       setInitialLayoutApplied(false); // Reset layout flag to trigger auto-layout
-      toast.success(`AI Graph ${graphAction}`, { description: "New graph loaded and saved.", duration: 3000 });
+      toast.success(`AI Graph ${graphAction}`, { 
+        description: `New graph loaded and saved to ${user ? 'cloud' : 'local storage'}.`, 
+        duration: 3000 
+      });
 
     } catch (error) {
       console.error("Error generating graph via backend:", error);
@@ -490,14 +435,20 @@ const Index = () => {
             <div className="flex-grow overflow-y-auto p-4 flex flex-col min-h-0">
               <h3 className="text-sm font-medium mb-3 flex-shrink-0">Version History</h3>
                <div className="space-y-1 flex-grow overflow-y-auto">
-              {versionHistory.map((version) => (
-                <VersionHistoryItem
-                  key={version.id}
-                  version={version}
-                  onRestore={handleRestoreVersion}
-                   isActive={version.id === activeVersionId}
-                />
-              ))}
+              {isLoading ? (
+                <div className="text-center text-muted-foreground py-4">
+                  Loading graphs...
+                </div>
+              ) : (
+                versionHistory.map((version) => (
+                  <VersionHistoryItem
+                    key={version.id}
+                    version={version}
+                    onRestore={handleRestoreVersion}
+                    isActive={version.id === activeVersionId}
+                  />
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -538,11 +489,21 @@ const Index = () => {
                      onDragOver={onDragOver}
                      nodeTypes={nodeTypes}
             onSave={handleSave} 
-                     onReset={() => {
+                     onReset={async () => {
                        setNodes([]);
                        setEdges([]);
                        setActiveVersionId('initial');
                        setInitialLayoutApplied(false); // Reset layout flag on manual reset
+                       
+                       // Save the reset state
+                       try {
+                         await graphStorage.saveGraph({ nodes: [], edges: [] }, 'Reset Graph');
+                         const updatedHistory = await graphStorage.loadGraphs();
+                         setVersionHistory(updatedHistory);
+                       } catch (error) {
+                         console.error('Failed to save reset state:', error);
+                       }
+                       
                        toast.info("Graph Reset", { description: "Canvas cleared.", duration: 3000 });
                      }}
                      onAutoLayout={handleAutoLayout} // Pass the handler

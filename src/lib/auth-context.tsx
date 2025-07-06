@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { graphStorage } from './graphStorage';
 import { toast } from '@/components/ui/sonner';
 
 interface AuthContextType {
@@ -23,11 +24,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
+      graphStorage.setUser(session?.user ?? null);
     });
 
     // Listen for changes on auth state (signed in, signed out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const newUser = session?.user ?? null;
+      setUser(newUser);
+      graphStorage.setUser(newUser);
+      
+      // If user just logged in, sync localStorage to Supabase
+      if (newUser && _event === 'SIGNED_IN') {
+        try {
+          await graphStorage.syncLocalToSupabase();
+          toast.success('Your local graphs have been synced to the cloud!');
+        } catch (error) {
+          console.error('Failed to sync graphs:', error);
+          toast.error('Failed to sync local graphs to cloud');
+        }
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -53,9 +68,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    toast.success('Logged out successfully');
+    console.log('Attempting to sign out...');
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+        toast.error(`Logout failed: ${error.message}`);
+        throw error;
+      }
+      console.log('Successfully signed out.');
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Caught unexpected error during signOut:', error);
+      toast.error('An unexpected error occurred during logout.');
+    }
   };
 
   const signInWithGithub = async () => {
